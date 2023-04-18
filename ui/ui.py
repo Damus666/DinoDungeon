@@ -6,21 +6,23 @@ from .uistate import *
 class UI:
     def __init__(self, assets, day_night, coin_img, player):
         
-        self.states:list[UIState] = [
+        self.states:dict[str,UIState] = {
             #UIOverlay(assets),
-            UIDNC(assets,day_night),
-            UIHealth(assets,player.stats),
-            UICoins(player.inventory,coin_img),
-            UIInventory(player.inventory,player)
-        ]
+            "dnc":UIDNC(assets,day_night,player.debug),
+            "health":UIHealth(assets,player.stats,player.debug),
+            "coins":UICoins(player.inventory,coin_img,player.debug),
+            "inventory":UIInventory(player.inventory,player),
+            "boss":UIBoss(player.debug)
+        }
+        self.state_values = self.states.values()
         
-        self.updates = [state for state in self.states if hasattr(state,"update")]
+        self.updates = [state for state in self.state_values if hasattr(state,"update")]
     
     @runtime
     def update(self, dt):
-        for state in self.updates: state.update(dt)
+        [state.update(dt) for state in self.updates]
     
     @runtime
     def draw(self):
-        for state in self.states: state.draw()
+        [state.draw() for state in self.state_values]
     

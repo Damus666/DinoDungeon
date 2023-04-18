@@ -7,6 +7,7 @@ class Transition:
     def __init__(self,dungeon):
         self.display_surface = pygame.display.get_surface()
         self.dungeon = dungeon
+        self.debug = self.dungeon.debug
         self.coord1,self.coord2, self.target_coord = 0,0,0
         self.axis,self.direction = "y",1
         self.active,self.stage = False,1
@@ -27,6 +28,7 @@ class Transition:
     
     @runtime
     def update(self, dt):
+        self.debug.updates += 1
         if self.active:
             if self.stage == 1:
                 self.coord1 = lerp(self.coord1, self.target_coord, TRANSITION_SPEED * dt)
@@ -53,3 +55,4 @@ class Transition:
                                  (0, self.coord1 if self.direction == -1 else self.coord2, WIDTH, abs(self.coord1-self.coord2)))
             pygame.draw.rect(self.display_surface,TRANSITION_COL,self.visible_name_r.inflate(30,-10),0,0)
             self.display_surface.blit(self.name_surf,self.name_rect)
+            self.debug.blits += 3

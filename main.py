@@ -1,7 +1,7 @@
 import pygame
 from settings import *
 from generation.dungeon import Dungeon
-from sprites.assetloader import AssetLoader
+from graphics.assetloader import AssetLoader
 
 @singleton
 class Main:
@@ -11,7 +11,7 @@ class Main:
         self.clock = pygame.time.Clock()
         self.asset_loader = AssetLoader()
         self.dungeon_active = True
-        self.dungeon = Dungeon(self.asset_loader)
+        self.dungeon = Dungeon(self.asset_loader,self.clock)
     
     @once
     def run(self):
@@ -22,8 +22,6 @@ class Main:
             self.dungeon.run(dt) if self.dungeon_active else None
             if first_frame: self.dungeon.start(); first_frame = False
             
-            fps = self.clock.get_fps()
-            pygame.display.set_caption(f"{fps=:.2f}")
             pygame.display.update()
         
 if __name__ == "__main__":

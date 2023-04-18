@@ -162,3 +162,5 @@ cython_debug/
 
 TODO.txt
 .VSCodeCounter/
+z.sl
+z.py

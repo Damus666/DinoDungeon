@@ -19,7 +19,7 @@ class MapLoader:
         self.rooms = []
         self.room_data = []
         self.corridor_data = {"crates": [], "spikes": [
-        ], "name": "Corridor", "heros": [], "enemies": [], "bosses": []}
+        ], "name": "Corridor", "heros": [], "enemies": [],"portal":False}
         self.connections = []
         self.player_room_index = []
 
@@ -36,21 +36,19 @@ class MapLoader:
     def get_room_data(self):
         for room in self.rooms:
             self.room_data.append({"crates": [], "spikes": [], "name": "Generic", "heros": [
-            ], "enemies": [], "bosses": []})
+            ], "enemies": [], "portal":False})
         for obj_data in self.object_data:
             room_i = self.get_room_index(obj_data[0])
             obj_id = obj_data[1]
-            if room_i == -1:
-                room = self.corridor_data
-            else:
-                room = self.room_data[room_i]
+            if room_i == -1: room = self.corridor_data
+            else: room = self.room_data[room_i]
             match obj_id:
                 case "crate": room["crates"].append((obj_data[0], obj_data[2] if obj_data[2] else "coins"))
                 case "spike": room["spikes"].append(obj_data[0])
                 case "room_name": room["name"] = obj_data[2] if obj_data[2] else "Generic"
                 case "hero": room["heros"].append((obj_data[0], obj_data[2] if obj_data[2] else None))
                 case "enemy": room["enemies"].append((obj_data[0], obj_data[2] if obj_data[2] else None))
-                case "boss": room["bosses"].append((obj_data[0], obj_data[2] if obj_data[2] else None))
+                case "portal": room["portal"] = obj_data[0]
 
     @extend(load)
     def get_rooms(self):

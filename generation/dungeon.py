@@ -9,24 +9,31 @@ from sprites.sprites import *
 from support import *
 from runtime.transition import Transition
 from runtime.dialogue import Dialogue
+from runtime.debug import Debug
+
+# maps
+import maps.DungeonFeatures
 
 @singleton
 class Dungeon:
-    def __init__(self, assets):
+    def __init__(self, assets, clock):
         # setup
         self.display_surface = pygame.display.get_surface()
         self.assets = assets
         
         # child
+        self.debug = Debug(clock)
         self.player = Player(self.assets["lizard_f"],self)
-        self.dnc = DNC()
+        self.dnc = DNC(self.debug)
         self.ui = UI(self.assets["ui"],self.dnc,self.assets["coin"]["anim"][0],self.player)
         self.map_loader = MapLoader()
         self.transition = Transition(self)
         self.dialogue = Dialogue(self)
         
         # init
-        self.map_loader.load("DungeonTestMap")
+        self.map_loader.load("DungeonFeatures")
+        self.map_script = maps.DungeonFeatures
+        self.debug.loaded_sprites = count_pngs("assets")
         
         # dungeon
         self.reset()
@@ -41,6 +48,7 @@ class Dungeon:
     @external
     def mid_transition(self):
         self.current_room = self.next_room
+        self.current_room.enter()
         self.player.change_room(self.current_room)
         self.player.teleport()
     
@@ -77,14 +85,18 @@ class Dungeon:
     @runtime
     def event_loop(self):
         self.player.reset_event()
+        self.debug.updates += 2
         for event in pygame.event.get():
+            self.debug.event(event)
             if event.type == pygame.QUIT: pygame.quit(); sys.exit()
             actioned = self.dialogue.event(event)
+            self.debug.updates += 2
             if not actioned: self.player.event(event)
     
     @runtime  
     def run(self, dt):
         self.event_loop()
+        self.debug.update(dt)
         self.dnc.update(dt)
         self.current_room.update(dt)
         self.transition.update(dt)
@@ -99,3 +111,4 @@ class Dungeon:
         self.ui.draw()
         self.dialogue.draw()
         self.transition.draw()
+        self.debug.draw()

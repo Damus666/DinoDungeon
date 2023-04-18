@@ -10,11 +10,13 @@ class Room:
     def __init__(self,dungeon,positions,data):
         self.display_surface = pygame.display.get_surface()
         self.dungeon = dungeon
+        self.debug = self.dungeon.debug
         self.positions = positions
         self.data = data
         self.player = self.dungeon.player
         self.offset = pygame.Vector2(0,0)
         self.name = self.data["name"]
+        self.boss_ui = self.dungeon.ui.states["boss"]
         
         self.visible_bg = CameraGroup(self.player)
         self.visible_floor = CameraGroup(self.player)
@@ -44,30 +46,41 @@ class Room:
         self.outline_positions = RoomGenerator.get_outline_positions(self.positions)
         for pos in self.positions:
             scaled = RoomGenerator.scale_pos(pos)
-            Generic(scaled,RoomGenerator.get_floor_sprite(assets["floor"]),[self.visible_floor],self.dungeon)
+            Generic(scaled,RoomGenerator.get_floor_sprite(assets["floor"]),[self.visible_floor],self)
         for spike_pos in self.data["spikes"]:
             scaled = RoomGenerator.scale_pos(spike_pos)
-            Spike(scaled,assets["spikes"],[self.visible_walls,self.updates,self.spikes])
+            Spike(scaled,assets["spikes"],[self.visible_walls,self.updates,self.spikes],self)
         for pos in self.outline_positions:
             scaled = RoomGenerator.scale_pos(pos)
             sprites, names = RoomGenerator.get_wall_sprite(self.positions,self.outline_positions,assets["wall"],pos)
-            Wall(scaled,sprites[0],[self.visible_walls,self.collidable],self.dungeon,names[0])
+            Wall(scaled,sprites[0],[self.visible_walls,self.collidable],self,names[0])
             if names[-1] == "none":
-                if sprites[1]: Wall((scaled[0],scaled[1]-TILE_SIZE),sprites[1],[self.visible_walls,self.collidable],self.dungeon,names[1])
-                if sprites[2]: Wall((scaled[0],scaled[1]+TILE_SIZE),sprites[2],[self.visible_floor,self.collidable],self.dungeon,names[2])
+                if sprites[1]: Wall((scaled[0],scaled[1]-TILE_SIZE),sprites[1],[self.visible_walls,self.collidable],self,names[1])
+                if sprites[2]: Wall((scaled[0],scaled[1]+TILE_SIZE),sprites[2],[self.visible_floor,self.collidable],self,names[2])
             else:
-                Wall((scaled[0],scaled[1]-TILE_SIZE),sprites[1],[self.collidable,self.visible_walls],self.dungeon,names[1])
-                Fountain(scaled,assets["wall"],[self.visible_walls,self.collidable,self.updates],names[0],names[-1])
-                Fountain((scaled[0],scaled[1]+TILE_SIZE),assets["wall"],[self.visible_walls,self.collidable,self.updates],names[2],names[-1])
+                Wall((scaled[0],scaled[1]-TILE_SIZE),sprites[1],[self.collidable,self.visible_walls],self,names[1])
+                Fountain(scaled,assets["wall"],[self.visible_walls,self.collidable,self.updates],names[0],names[-1],self)
+                Fountain((scaled[0],scaled[1]+TILE_SIZE),assets["wall"],[self.visible_walls,self.collidable,self.updates],names[2],names[-1],self)
         for crate_pos,crate_data in self.data["crates"]:
             scaled = RoomGenerator.scale_pos(crate_pos)
             Crate(scaled, assets["crate"],crate_data,[self.visible_objects,self.collidable,self.crates],assets["smoke"]["particles"],[self.visible_walls,self.updates],
                           [assets["coin"]["anim"],assets["coin"]["particle"],[self.visible_objects,self.coins,self.updates],[self.visible_walls,self.updates]],
-                          [self.visible_objects,self.drops,self.updates])
+                          [self.visible_objects,self.drops,self.updates],self)
         for hero_pos,hero_data in self.data["heros"]:
-            if not hero_data: hero_data = "lizard_f,0"
+            if not hero_data: hero_data = "lizard_f,0,Hero"
             scaled = RoomGenerator.scale_pos(hero_pos)
-            Hero(scaled,assets[hero_data.split(",")[0]],[self.visible_objects,self.updates,self.heros],hero_data,self.name_font)
+            Hero((scaled[0],scaled[1]-TILE_SIZE),assets[hero_data.split(",")[0]],[self.visible_objects,self.updates,self.heros],hero_data,self.name_font,self)
+        for enemy_pos, enemy_data in self.data["enemies"]:
+            is_boss = "BOSS" in enemy_data
+            if is_boss: enemy_data = enemy_data.replace("BOSS","")
+            asset_name, real_name = enemy_data.split(",")
+            if not real_name.strip(): real_name = asset_name
+            scaled = RoomGenerator.scale_pos(enemy_pos)
+            if is_boss:
+                Boss(scaled,assets[asset_name],[self.visible_objects,self.updates,self.enemies],real_name,self.name_font,self)
+            else:
+                EnemyAttacker(scaled, assets[asset_name],[self.visible_objects,self.updates,self.enemies],real_name,self.name_font,self)
+        
         self.build_bg()
     
     @extend(build)
@@ -81,7 +94,7 @@ class Room:
         layers = layer1_outlines.copy(); layers.extend(layer2_outlines); layers.extend(layer3_outlines); layers.extend(self.outline_positions)
         for tile in layers:
             surf = pygame.Surface((TILE_SIZE,TILE_SIZE)); surf.fill(BG_DARK_COL)
-            t = Generic(RoomGenerator.scale_pos(tile),surf,[self.visible_bg],self.dungeon); t.draw_secondary = False
+            t = Generic(RoomGenerator.scale_pos(tile),surf,[self.visible_bg],self); t.draw_secondary = False
     
     @external
     def add_door(self, door_pos, door_center,door_dir, room_connected, teleport_loc, transition_dir, key):
@@ -99,15 +112,31 @@ class Room:
                     wall.kill()
                     if wall.hitbox.colliderect(door.hitbox):
                         \
-        floor = Generic(wall.rect.topleft,self.dungeon.assets["floor"][0],[self.visible_floor,self.collidable],self.dungeon)
+        floor = Generic(wall.rect.topleft,self.dungeon.assets["floor"][0],[self.visible_floor,self.collidable],self)
         return door
     
     def drop_item(self, item, pos):
         Drop(pos,(0,0),self.player.inventory.get_item_surf_only(item.name),item.name,
-             [self.visible_objects,self.updates,self.drops],self.dungeon.assets["coin"]["particle"],[self.visible_walls,self.updates])
+             [self.visible_objects,self.updates,self.drops],self.dungeon.assets["coin"]["particle"],[self.visible_walls,self.updates],self)
+    
+    def defeated(self, enemy):
+        if "lock_room" in enemy.special_actions:
+            for door in self.doors:
+                door.unlock()
+        if "boss_ui" in enemy.special_actions:
+            self.boss_ui.end()
+    
+    def enter(self):
+        for enemy in self.enemies:
+            if "lock_room" in enemy.special_actions:
+                for door in self.doors:
+                    door.lock()
+            if "boss_ui" in enemy.special_actions:
+                self.boss_ui.start(enemy)
     
     @runtime
     def update(self, dt):
+        self.debug.updates += 1
         self.player.update(dt)
         self.updates.update(dt)
     
@@ -146,6 +175,7 @@ class CameraGroup(pygame.sprite.Group):
         super().__init__()
         self.display_surface = pygame.display.get_surface()
         self.player = player
+        self.debug = self.player.debug
     
     @runtime
     def custom_draw(self,offset, secondary=False):
@@ -159,3 +189,4 @@ class CameraGroup(pygame.sprite.Group):
                     self.display_surface.blit(sprite.alpha_image,offset_rect)
                 else:
                     self.display_surface.blit(sprite.image,offset_rect)
+                self.debug.rendering += 1

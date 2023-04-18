@@ -6,6 +6,7 @@ class Dialogue:
     def __init__(self, dungeon):
         self.display_surface = pygame.display.get_surface()
         self.dungeon = dungeon
+        self.debug = self.dungeon.debug
         self.font1 = pygame.font.Font("assets/fonts/main.ttf",35)
         
         self.bg_panel = pygame.Rect(0,0,WIDTH-WIDTH/4,HEIGHT/4)
@@ -52,6 +53,8 @@ class Dialogue:
         if self.stage_data["type"] == "shop":
             x = self.bg_panel.left+50
             y = self.bg_panel.top+80
+            if "text" in self.stage_data and len(self.texts) > 1:
+                y = self.texts[-1][1].bottom + 20
             for (item,amount),(price,price_amount) in self.stage_data["shop"]:
                 button = ShopButton((x,y),(230,DIALOGUE_BTN_H),False,amount,self.dungeon.player.inventory.get_item_surf_only(item),price_amount,
                                     self.dungeon.player.inventory.get_item_surf_only(price) if price != "coins" else self.dungeon.assets["coin"]["anim"][0],
@@ -97,26 +100,31 @@ class Dialogue:
         pygame.draw.rect(self.display_surface,UI_BG_COL,self.name_bg_r)
         pygame.draw.polygon(self.display_surface,UI_BG_COL,(self.name_bg_r.topleft,self.name_bg_r.bottomleft,(self.name_bg_r.left-30,self.name_bg_r.bottom)))
         self.display_surface.blit(self.name_surf,self.name_rect)
+        self.debug.blits += 5
         
-        self.quit_btn.draw(self.display_surface)
+        self.quit_btn.draw(self.display_surface,self.debug)
         
         for txt_s,txt_r in self.texts:
             self.display_surface.blit(txt_s,txt_r)
             if (alpha:=txt_s.get_alpha()) < 255: txt_s.set_alpha(alpha+1)
+            self.debug.blits += 1
             
-        for btn in self.action_btns: btn.draw(self.display_surface)
-        for btn in self.shop_btns: btn.draw(self.display_surface)
+        for btn in self.action_btns: btn.draw(self.display_surface,self.debug)
+        for btn in self.shop_btns: btn.draw(self.display_surface, self.debug)
     
     @runtime
     def update(self, dt):
         if not self.active: return
         if self.quit_btn.check(): self.quit()
+        self.debug.updates += 2
         
         for btn in self.action_btns:
             if btn.check(): self.change_stage(btn.name)
+            self.debug.updates += 1
             
         for btn in self.shop_btns:
             if btn.check(): self.dungeon.player.shop_action(btn)
+            self.debug.updates += 1
 
 @internal  
 class DialogueButton:
@@ -139,13 +147,14 @@ class DialogueButton:
         return action
     
     @runtime
-    def draw(self,screen):
-        self.base_draw(screen)
+    def draw(self,screen, debug):
+        self.base_draw(screen, debug)
     
     @runtime
-    def base_draw(self,screen):
-        if self.hovering: pygame.draw.rect(screen,(150,150,150),self.rect.inflate(4,4),0,4)
+    def base_draw(self,screen, debug):
+        if self.hovering: pygame.draw.rect(screen,(150,150,150),self.rect.inflate(4,4),0,4); debug.blits += 1
         pygame.draw.rect(screen,UI_DIALOGUE_BTN_COL,self.rect,0,4)
+        debug.blits += 1
 
 @internal
 class TextButton(DialogueButton):
@@ -156,10 +165,11 @@ class TextButton(DialogueButton):
         self.text_r = self.text_s.get_rect()
     
     @override
-    def draw(self, screen):
-        self.base_draw(screen)
+    def draw(self, screen, debug):
+        self.base_draw(screen, debug)
         self.text_r.center = self.rect.center
         screen.blit(self.text_s,self.text_r)
+        debug.blits += 1
 
 @internal
 class ShopButton(DialogueButton):
@@ -189,11 +199,12 @@ class ShopButton(DialogueButton):
         self.arrow_surf = self.font.render("=>",False,"white")
         self.arrow_rect = self.arrow_surf.get_rect(center=self.rect.center)
         
-    def draw(self, screen):
-        self.base_draw(screen)
+    def draw(self, screen, debug):
+        self.base_draw(screen, debug)
         
         screen.blit(self.amount_surf,self.amount_rect)
         screen.blit(self.item_img,self.item_rect)
         screen.blit(self.price_amount_surf,self.price_amount_rect)
         screen.blit(self.price_img,self.price_rect)
         screen.blit(self.arrow_surf,self.arrow_rect)
+        debug.blits += 5

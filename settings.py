@@ -24,6 +24,7 @@ ADD_FAIL_MESSAGES = {
 
 # ui
 UI_HEART_SIZE = 45
+BOSS_HEART_SIZE = 60
 UI_SPACING = 8
 UI_BG_COL = (20, 20, 20)
 UI_SLOT_SIZE = 60
@@ -37,6 +38,11 @@ MSG_DISAPPEAR_SPEED = 200
 UI_DIALOGUE_BTN_COL = (35, 35, 35)
 DIALOGUE_BTN_H = 40
 DIALOGUE_OFFSET = 8
+HEALTH_BAR_COL = (180,0,45)
+HEALTH_OUTLINE_COL = (110,0,5)
+DEBUG_S = 8
+DEBUG_H = 30
+DEBUG_SPACING = DEBUG_S+DEBUG_H
 
 # dnc
 DAY_DURATION = 10*1000*60
@@ -54,6 +60,8 @@ SPIKE_DAMAGE = 1
 DROP_SCALE = 0.7
 DROP_IDLE_SPEED, DROP_IDLE_OFFSET = 30, TILE_SIZE//6
 END_ROOM_NAME = "Portal Room"
+ENEMY_VISION_RANGE = TILE_SIZE*6
+BOSS_VISION_RANGE = TILE_SIZE*10
 
 # generation
 FLOOR_WEIGHTS = [
@@ -77,7 +85,7 @@ OBJECT_ID_LOOKUP = {
     7: "room_name",
     8: "hero",
     9: "enemy",
-    10: "boss"
+    10: "portal"
 }
 WALL_NAMES_LOOKUP = mapping = {
     "mid": "wall_mid",
@@ -108,33 +116,43 @@ WALL_NAMES_LOOKUP = mapping = {
 
 # characters
 HERO_NAMES = [
-    "lizard_f"
+    "lizard_f",
+    "lizard_m",
+    "wizzard_f",
+    "wizzard_m",
+    "elf_f",
+    "elf_m",
+    "knight_f",
+    "knight_m"
 ]
-INTERACTION_DATA = {
-    0: {
-        "type": "question",
-        "text": ["Hi hero! Are you in search of special items? I can help you!"],
-        "actions": {
-            "Show me [E]": {
-                "type": "shop",
-                "text": ["That's what I got, the prices are really good"],
-                "shop": [
-                    [["Quartz Key", 1], ["coins", 10]],[["Sword",2],["coins",10]]
-                    ,[["Sword",2],["coins",10]],[["Sword",2],["coins",10]],[["Sword",2],["Portal Key",20]],[["Sword",1],["coins",10]]
-                ],
-                "actions": {
-                    "Close [E]": "quit"
-                }
-            },
-            "No thanks": "quit"
-        }
-    }
-}
+ENEMY_NAMES = [
+    "chort",
+    "goblin",
+    "ice_zombie",
+    "imp",
+    "masked_orc",
+    "muddy",
+    "necromancer",
+    "orc_shaman",
+    "orc_warrior",
+    "skelet",
+    "swampy",
+    "tiny_zombie",
+    "wogol",
+    "zombie"
+]
+BOSS_NAMES = [
+    "big_demon",
+    "big_zombie",
+    "ogre"
+]
+
 
 # colors
 BG_COL = (35, 29, 35)  # (20,20,20)
 TRANSITION_COL = (20, 20, 20)
 BG_DARK_COL = (35-3, 29-3, 35-3)
+CYAN = (0,255,255)
 
 # decorators
 

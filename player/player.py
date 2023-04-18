@@ -8,9 +8,10 @@ from support import *
 @runtime
 class Player(AnimatedStatus):
     def __init__(self, animations, dungeon):
-        super().__init__((0,0),animations,"idle",[],True)
+        super().__init__((0,0),animations,"idle",[],None,True)
         self.display_surface = pygame.display.get_surface()
         self.dungeon = dungeon
+        self.debug = self.dungeon.debug
         self.inventory = Inventory(dungeon.assets)
         self.stats = Stats()
         self.current_room = None
@@ -29,12 +30,13 @@ class Player(AnimatedStatus):
         self.direction = vector()
         self.orientation = "right"
         self.speed = P_SPEED
+        self.dungeon.debug.loaded_entities += 1
         
         self.draw_data = {"door":None,"crate":None,"hero":None}
         self.font1 = pygame.font.Font("assets/fonts/main.ttf",30)
         self.key_data = {"q":False}
         
-        self.give_starter_items("Portal Key","Silver Key","Quartz Key","Prismarine Key",coins=30)
+        self.give_starter_items("Portal Key","Silver Key","Quartz Key","Prismarine Key","Orc Mask",coins=30)
     
     @extend(__init__)
     def give_starter_items(self, *items,coins=0):
@@ -94,6 +96,7 @@ class Player(AnimatedStatus):
                 if not broken:
                     transitioned = self.door_collisions(True)
                     if not transitioned: self.hero_collisions(True)
+                self.debug.updates += 3
                     
             if e.key == pygame.K_q:
                 self.key_data["q"] = True
@@ -102,16 +105,16 @@ class Player(AnimatedStatus):
         self.pos.x += self.direction.x*self.speed*dt
         self.rect.centerx = round(self.pos.x)
         self.hitbox.centerx = self.rect.centerx
-        self.collision("horizontal")
+        self.collisions("horizontal")
         
         self.pos.y += self.direction.y*self.speed*dt
         self.rect.centery= round(self.pos.y)
         self.hitbox.centery = self.rect.centery+self.hitbox_offset
-        self.collision("vertical")
+        self.collisions("vertical")
         
         self.damage_hitbox.center = self.hitbox.center
         
-    def collision(self, direction):
+    def collisions(self, direction):
         for sprite in self.current_room.collidable:
             if sprite.hitbox.colliderect(self.hitbox):
                 if direction == "horizontal":
@@ -144,7 +147,8 @@ class Player(AnimatedStatus):
                     "center": door.rect.center,
                     "key":door.key,
                     "can":can,
-                    "can_txt": "Enter" if door.status == "close" else "Exit",
+                    "can_txt": "Enter [E]" if door.status == "close" else "Exit [E]",
+                    "locked":door.force_locked
                 }
                 return True
                 
@@ -191,13 +195,16 @@ class Player(AnimatedStatus):
         reason = self.inventory.add_fail_reason(drop.name)
         for inv_msg in self.current_room.inv_msgs:
             if inv_msg.drop == drop: return
-        InventoryInfoMsg(drop.rect.center,ADD_FAIL_MESSAGES[reason],self.font1,drop,[self.current_room.visible_top,self.current_room.updates,self.current_room.inv_msgs])
+        InventoryInfoMsg(drop.rect.center,ADD_FAIL_MESSAGES[reason],self.font1,drop,[self.current_room.visible_top,self.current_room.updates,self.current_room.inv_msgs],self.current_room)
     
     def draw_extra(self,offset):
         if self.draw_data["door"]:
             requiredkey = self.draw_data["door"]["key"]
             
-            txt = f"Require: {requiredkey}" if not self.draw_data["door"]["can"] else self.draw_data["door"]["can_txt"] +" [E]"
+            txt = self.draw_data["door"]["can_txt"]
+            if not self.draw_data["door"]["can"]:
+                if not self.draw_data["door"]["locked"]: txt = f"Require: {requiredkey}" 
+                else: txt = f"Locked"
             t_surf = self.font1.render(txt,False,"white")
             t_rect = t_surf.get_rect(center=self.draw_data["door"]["center"]-offset)
             
@@ -205,6 +212,7 @@ class Player(AnimatedStatus):
             self.display_surface.blit(t_surf,t_rect)
             
             self.draw_data["door"] = None
+            self.debug.blits += 2
             
         if self.draw_data["crate"]:
             t_surf = self.font1.render("Break [E]",False,"white")
@@ -214,6 +222,7 @@ class Player(AnimatedStatus):
             self.display_surface.blit(t_surf,t_rect)
             
             self.draw_data["crate"] = None
+            self.debug.blits += 2
             
         if self.draw_data["hero"]:
             t_surf = self.font1.render("Talk [E]",False,"white")
@@ -223,12 +232,14 @@ class Player(AnimatedStatus):
             self.display_surface.blit(t_surf,t_rect)
             
             self.draw_data["hero"] = None
+            self.debug.blits += 2
             
     def draw(self,offset):
         offsetted = self.rect.copy()
         offsetted.center -= offset
         if self.stats.can_damage:
             self.display_surface.blit(self.image,offsetted)
+            self.debug.blits += 1
         else:
             mask = pygame.mask.from_surface(self.image)
             surf = mask.to_surface(setcolor="red")
@@ -236,6 +247,7 @@ class Player(AnimatedStatus):
             surf.set_alpha(150)
             self.display_surface.blit(self.image,offsetted)
             self.display_surface.blit(surf,offsetted)
+            self.debug.blits += 2
                             
     def update(self, dt):
         self.input()
@@ -249,3 +261,4 @@ class Player(AnimatedStatus):
         self.coin_collisions()
         self.drop_collisions()
         self.spike_collisions()
+        self.debug.updates += 11

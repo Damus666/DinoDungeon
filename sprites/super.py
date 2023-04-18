@@ -23,17 +23,16 @@ class Door(Generic):
                 pos = (pos[0]-TILE_SIZE-(self.close_image.get_width()-(32*SCALE_FACTOR)),pos[1])
                 teleport_loc = (teleport_loc[0]+TILE_SIZE+TILE_SIZE//2,teleport_loc[1])
             
-        super().__init__(pos,self.close_image,groups,dungeon)
-        self.draw_secondary = False
-        self.room = room
+        super().__init__(pos,self.close_image,groups,room,False,False)
+        self.dungeon = dungeon
         self.room_connected = room_connected
         self.door_connected = None
         self.status = "close"
         self.key = key if key != "none" else None
         if orientation == "v":
             self.hitbox.inflate_ip(-TILE_SIZE*2,0)
-            Collider((self.hitbox.left-TILE_SIZE,self.hitbox.top+TILE_SIZE-1),(TILE_SIZE,TILE_SIZE),[self.room.collidable])
-            Collider((self.hitbox.right,self.hitbox.top+TILE_SIZE-1),(TILE_SIZE,TILE_SIZE),[self.room.collidable])
+            Collider((self.hitbox.left-TILE_SIZE,self.hitbox.top+TILE_SIZE-1),(TILE_SIZE,TILE_SIZE),[self.room.collidable],room)
+            Collider((self.hitbox.right,self.hitbox.top+TILE_SIZE-1),(TILE_SIZE,TILE_SIZE),[self.room.collidable],room)
         self.interaction_rect = self.hitbox.inflate(TILE_SIZE,TILE_SIZE*2)
         self.teleport_location = teleport_loc
         self.center = vector(self.rect.center)
@@ -44,15 +43,21 @@ class Door(Generic):
         self.name_rect = self.name_surf.get_rect(center = self.rect.midtop)
         self.name_rect_infalted = self.name_rect.inflate(10,-5)
         self.original_center = self.name_rect.center
+        self.force_locked = False
+        
+    def lock(self): self.force_locked = True; self.change_status("close")
+    def unlock(self): self.force_locked = False; self.change_status("open")
         
     def draw_name(self,screen,offset):
         self.name_rect.center = self.original_center-offset
         self.name_rect_infalted.center = self.original_center-offset
         pygame.draw.rect(screen,BG_DARK_COL,self.name_rect_infalted,0,4)
         screen.blit(self.name_surf,self.name_rect)
+        self.debug.blits += 2
         
     def can_interact(self, inventory):
-        return self.key == None or inventory.has_item(self.key)
+        self.debug.updates += 1
+        return (self.key == None or inventory.has_item(self.key)) and not self.force_locked
     
     def interact(self):
         self.dungeon.change_room(self.room_connected,self.orientation,self.transition_dir,self.teleport_location)
@@ -65,8 +70,8 @@ class Door(Generic):
         else: self.image = self.open_image
         
 class Crate(Generic):
-    def __init__(self, pos, surf, crate_data, groups, smoke_assets, smoke_groups, coin_data, drop_groups):
-        super().__init__(pos, surf, groups, False)
+    def __init__(self, pos, surf, crate_data, groups, smoke_assets, smoke_groups, coin_data, drop_groups,room):
+        super().__init__(pos, surf, groups, room,False)
         self.rect.y -= TILE_SIZE//2
         self.hitbox.y -= TILE_SIZE//2
         self.crate_data = crate_data
@@ -82,25 +87,27 @@ class Crate(Generic):
         
     @external
     def interact(self):
-        smoke = FxEffect((self.rect.centerx-TILE_SIZE,self.rect.centery),self.smoke_assets,self.smoke_groups,1,2)
+        smoke = FxEffect((self.rect.centerx-TILE_SIZE,self.rect.centery),self.smoke_assets,self.smoke_groups,self.room,1,2)
         if "coins" in self.crate_data:
             for i in range(self.coin_amount):
                 vel = vector(randint(-80,80),randint(50,80))
-                coin = Coin(self.rect.center,vel,self.coin_data[0],self.coin_data[1],self.coin_data[2],self.coin_data[3])
+                coin = Coin(self.rect.center,vel,self.coin_data[0],self.coin_data[1],self.coin_data[2],self.coin_data[3],self.room)
         elif "items" in self.crate_data:
             for item in self.items:
                 vel = vector(randint(-80,80),randint(50,80))
-                drop = Drop(self.rect.center,vel,Inventory.i.get_item_surf_only(item),item,self.drop_groups,self.coin_data[1],self.coin_data[3])
+                drop = Drop(self.rect.center,vel,Inventory.i.get_item_surf_only(item),item,self.drop_groups,self.coin_data[1],self.coin_data[3],self.room)
             
         self.kill()
 
 class Character(AnimatedStatus):
-    def __init__(self, pos, animations, groups):
-        super().__init__(pos, animations, "idle", groups, True)
+    def __init__(self, pos, animations, groups, room):
+        super().__init__(pos, animations, "idle", groups,room, True,False)
+        self.pos = vector(self.rect.center)
+        self.player = self.room.dungeon.player
         
 class Hero(Character):
-    def __init__(self, pos, animations, groups, data, font):
-        super().__init__(pos, animations, groups)
+    def __init__(self, pos, animations, groups, data, font, room):
+        super().__init__(pos, animations, groups, room)
         self.data = data
         self.name = "Hero"
         self.id = -1
@@ -109,8 +116,7 @@ class Hero(Character):
             self.id = int(self.id)
         self.interaction_rect = self.rect.inflate(TILE_SIZE,TILE_SIZE)
         self.interaction_data = None
-        if self.id != -1:
-            self.interaction_data = INTERACTION_DATA[self.id]
+        if self.id != -1: self.interaction_data = self.room.dungeon.map_script.INTERACTION_DATA[self.id]
         self.font = font
         self.name_surf = self.font.render(self.name,False,"white")
         self.name_rect = self.name_surf.get_rect()
@@ -121,3 +127,5 @@ class Hero(Character):
         self.name_rect.y+=2
         pygame.draw.rect(screen,BG_DARK_COL,self.name_rect.inflate(10,-5),0,4)
         screen.blit(self.name_surf,self.name_rect)
+        self.debug.blits += 2
+        

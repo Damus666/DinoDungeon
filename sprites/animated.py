@@ -3,9 +3,8 @@ from settings import *
 from .generic import *
 
 class Coin(Animated):
-    def __init__(self, pos, vel, frames, particle_frames, groups, particle_groups):
-        super().__init__(pos, frames, groups, True)
-        self.draw_secondary = False
+    def __init__(self, pos, vel, frames, particle_frames, groups, particle_groups, room):
+        super().__init__(pos, frames, groups, room,True,False)
         self.particle_frames = particle_frames
         self.particle_groups = particle_groups
         self.hitbox.inflate_ip(TILE_SIZE//1.5,TILE_SIZE//1.5)
@@ -19,7 +18,7 @@ class Coin(Animated):
     
     @external
     def collect(self):
-        particle = FxEffect(self.rect.center,self.particle_frames,self.particle_groups,1,0.8)
+        particle = FxEffect(self.rect.center,self.particle_frames,self.particle_groups,self.room,1,0.8)
         self.kill()
     
     @runtime
@@ -37,9 +36,10 @@ class Coin(Animated):
     def update(self, dt):
         self.move(dt)
         self.animate(dt)
+        self.debug.updates += 3
         
 class Spike(Animated):
-    def __init__(self, pos, assets, groups):
+    def __init__(self, pos, assets, groups, room):
         self.off_image = assets[0]
         self.alpha_image = self.off_image
         self.on_image = assets[-1]
@@ -48,10 +48,9 @@ class Spike(Animated):
         self.frame_len = len(assets)
         self.is_on = False
         
-        super().__init__(pos, self.open_frames, groups)
+        super().__init__(pos, self.open_frames, groups, room,False,True,SPIKE_DAMAGE)
         self.pos = vector(self.rect.center)
         self.hitbox.inflate_ip(-TILE_SIZE//4,-TILE_SIZE//4)
-        self.player_damage = SPIKE_DAMAGE
     
     @override
     def animate(self, dt):
@@ -69,19 +68,21 @@ class Spike(Animated):
     @external
     def is_close(self):
         if not self.is_on: self.is_on = True; self.frame_index = 0
+        self.debug.updates += 1
         
     @external
     def is_far(self):
         if self.is_on: self.is_on = False; self.frame_index = 0
+        self.debug.updates += 2
 
 class Fountain(Animated):
-    def __init__(self, pos, assets, groups, name, col):
+    def __init__(self, pos, assets, groups, name, col, room):
         side = "basin" if "bottom" in name else "mid"
         anim_names = []
         for i in range(3): anim_names.append(f"wall_fountain_{side}_{col}_anim_f{i}")
         frames = []
         for name in anim_names: frames.append(assets[name])
-        super().__init__(pos, frames, groups,False)
+        super().__init__(pos, frames, groups,room,False,True,0)
         rect = self.rect.copy()
         inflate_amount = 50
         if side == "basin":
@@ -90,10 +91,10 @@ class Fountain(Animated):
             self.hitbox = rect.copy()
             
 class FxEffect(Animated):
-    def __init__(self, pos, frames, groups, loops=1, speed_mul=1):
+    def __init__(self, pos, frames, groups,room, loops=1, speed_mul=1):
         self.loops = loops
         self.loop_count = 0
-        super().__init__(pos, frames, groups, True,speed_mul)
+        super().__init__(pos, frames, groups,room, True,speed_mul=speed_mul)
         self.draw_secondary = False
     
     @override
@@ -110,5 +111,5 @@ class FxEffect(Animated):
         self.rect = self.image.get_rect(center=self.rect.center)
         
 class StaticFxEffect(Animated):
-    def __init__(self, pos, frames, groups, speed_mul=1):
-        super().__init__(pos, frames, groups, True,speed_mul)
+    def __init__(self, pos, frames, groups, room,speed_mul=1):
+        super().__init__(pos, frames, groups, room,True,speed_mul=speed_mul)

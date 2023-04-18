@@ -3,9 +3,10 @@ from settings import *
 
 @singleton
 class DNC:
-    def __init__(self):
+    def __init__(self, debug):
         self.display_surface = pygame.display.get_surface()
         self.day_counter = 1
+        self.debug = debug
         self.ui_changed = False
         
         self.night_alpha = 50
@@ -33,6 +34,7 @@ class DNC:
     
     @runtime
     def update(self, dt):
+        self.debug.updates += 1
         if self.status == 0: # day
             if self.black_transition:
                 self.black_alpha -= CYCLE_TRANSITION_SPEED * 15 * dt
@@ -73,6 +75,6 @@ class DNC:
     
     @runtime
     def draw(self):
-        if self.cur_alpha > 0: self.display_surface.blit(self.night_surf,(0,0))
-        if self.black_alpha > 0: self.display_surface.blit(self.black_surf,(0,0))
+        if self.cur_alpha > 0: self.display_surface.blit(self.night_surf,(0,0)); self.debug.blits += 1
+        if self.black_alpha > 0: self.display_surface.blit(self.black_surf,(0,0)); self.debug.blits += 1
         

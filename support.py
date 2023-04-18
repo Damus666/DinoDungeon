@@ -7,6 +7,29 @@ from player.inventory import Item
 
 @helper
 
+class HealthBar:
+    def __init__(self, rect, fill_color, corner_w, has_outline=False, outline_col=None):
+        if not has_outline:
+            self.bg_rect = CornerRect(rect.inflate(4,4),corner_w,UI_BG_COL)
+            self.fill_rect = CornerRect(rect,corner_w,fill_color)
+            self.original = rect
+        else:
+            self.bg_rect = CornerRect(rect,corner_w,UI_BG_COL)
+            self.fill_rect = CornerRect(rect,corner_w,fill_color)
+            self.original = rect
+            self.outline_rect = CornerRect(rect.inflate(4,4),corner_w,outline_col)
+        self.has_outline = has_outline
+        
+    def draw(self, current_health, max_health):
+        if self.has_outline: self.outline_rect.draw()
+        self.bg_rect.draw()
+        ratio = current_health/max_health
+        w = int(self.original.w * ratio)
+        if self.fill_rect.original.w != w:
+            self.fill_rect.original.w = w
+            self.fill_rect.refresh()
+        self.fill_rect.draw()
+
 class CornerRect:
     def __init__(self, rect:pygame.Rect, border_size, color):
         # params
@@ -14,6 +37,21 @@ class CornerRect:
         self.original = rect
         self.size = border_size
         self.color = color
+        self.refresh()
+        
+    def set_rect(self, rect):
+        self.original = rect
+        self.refresh()
+        
+    def set_topleft(self, pos):
+        self.original.topleft = pos
+        self.refresh()
+        
+    def set_center(self, pos):
+        self.original.center = pos
+        self.refresh()
+        
+    def refresh(self):
         
         # rect, corners
         self.v_rect = self.original.inflate(-self.size*2,0)
@@ -30,10 +68,11 @@ class CornerRect:
         self.h_rect.w += 1
         self.center = self.v_rect.center
         
-    def draw(self):
+    def draw(self, debug=None):
         pygame.draw.rect(self.display_surface,self.color,self.h_rect)
         pygame.draw.rect(self.display_surface,self.color,self.v_rect)
         for corner in self.corners: pygame.draw.polygon(self.display_surface,self.color,corner)
+        if debug: debug.blits += 7
             
 class Timeit:
     def __init__(self):
@@ -51,6 +90,16 @@ class Timeit:
         print(f"{self.name} elapsed: {self.end_time-self.start_time}")
         return self
             
+def count_pngs(path):
+    count = 0
+    for f_name, sub_f, files in walk(path):
+        for sub_n in sub_f:
+            count += count_pngs(path+"/"+sub_n)
+        for f in files:
+            if f.endswith("png"):
+                count += 1
+    return count            
+
 def list_remove_cond(iterable, condition):
     toremove = []
     for el in iterable:

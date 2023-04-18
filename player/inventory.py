@@ -22,7 +22,7 @@ class Inventory:
             if w > h:
                 ratio = w/UI_INNER_SLOT_SIZE
                 image = pygame.transform.scale(img,(int(UI_INNER_SLOT_SIZE),int(h/ratio)))
-                sprites[name] = image
+                sprites[name] = (image,image.get_rect())
             else:
                 ratio = h/UI_INNER_SLOT_SIZE
                 image = pygame.transform.scale(img,(int(w/ratio),int(UI_INNER_SLOT_SIZE)))

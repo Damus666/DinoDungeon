@@ -2,17 +2,19 @@ import pygame
 from settings import *
 from support import *
 from sprites.sprites import FloatingUI
+from support import HealthBar
 
 class UIState:
-    def __init__(self):
+    def __init__(self, debug):
         self.display_surface = pygame.display.get_surface()
+        self.debug = debug
     
     def draw(self):
         pass
     
 class UIDNC(UIState):
-    def __init__(self, assets, day_night):
-        super().__init__()
+    def __init__(self, assets, day_night, debug):
+        super().__init__(debug)
         self.day_night = day_night
         
         self.dnc_bg_rect = pygame.Rect(0,0,150,80)
@@ -37,6 +39,7 @@ class UIDNC(UIState):
         self.day_count_surf = self.dnc_font1.render(f"DAY  {self.day_night.day_counter}",True,"white")
         self.day_count_rect = self.day_count_surf.get_rect(topright = (WIDTH-5,5+self.dnc_time_h))
         self.day_night.ui_changed = False
+        self.debug.updates += 1
         
     def draw(self):
         # update
@@ -61,10 +64,11 @@ class UIDNC(UIState):
         self.display_surface.blit(self.dnc_time_surf,self.dnc_time_rect)
         self.display_surface.blit(self.day_count_surf,self.day_count_rect)
         self.display_surface.blit(img_touse,r_touse)
-        if also_t: self.display_surface.blit(self.dnc_lil_moon,self.dnc_lil_moon_r)
+        if also_t: self.display_surface.blit(self.dnc_lil_moon,self.dnc_lil_moon_r); self.debug.blits += 1
         # draw time bar
         pygame.draw.rect(self.display_surface,"white",self.dnc_timepos_inf)
         pygame.draw.rect(self.display_surface,"red",self.dnc_timepos_r)
+        self.debug.blits += 8
         
     @extend(__init__)
     def form_dnc_gradient(self):
@@ -80,8 +84,8 @@ class UIDNC(UIState):
         del pixels
         
 class UIHealth(UIState):
-    def __init__(self, assets, stats, bg_bottom=60):
-        super().__init__()
+    def __init__(self, assets, stats, debug,bg_bottom=60):
+        super().__init__(debug)
         self.stats = stats
         
         self.heart_empty = assets["ui_heart_empty"]
@@ -98,19 +102,25 @@ class UIHealth(UIState):
         # draw bg
         pygame.draw.rect(self.display_surface,UI_BG_COL,self.hearts_bg_r)
         pygame.draw.polygon(self.display_surface,UI_BG_COL,(self.hearts_bg_r.topright,self.hearts_bg_r.bottomright,(self.hearts_bg_r.right+50,0)))
+        self.debug.blits += 2
         # empty hearts
-        for i in self.range_5: self.display_surface.blit(self.heart_empty,(self.heart_spacing+(-self.heart_spacing/2)*(i)+UI_HEART_SIZE*i,self.heart_spacing))
+        for i in self.range_5:
+            self.display_surface.blit(self.heart_empty,(self.heart_spacing+(-self.heart_spacing/2)*(i)+UI_HEART_SIZE*i,self.heart_spacing))
+            self.debug.blits += 1
         # fill hearts
         last_i = 0
         for i in range(self.stats.health //2):
             self.display_surface.blit(self.heart_full,(self.heart_spacing+(-self.heart_spacing/2)*(i)+UI_HEART_SIZE*i,self.heart_spacing/2))
             last_i = i+1
+            self.debug.blits += 1
         # half heart
-        if self.stats.health % 2 != 0: self.display_surface.blit(self.heart_half,(self.heart_spacing+(-self.heart_spacing/2)*(last_i)+UI_HEART_SIZE*last_i,self.heart_spacing/2))
+        if self.stats.health % 2 != 0:
+            self.debug.blits += 1
+            self.display_surface.blit(self.heart_half,(self.heart_spacing+(-self.heart_spacing/2)*(last_i)+UI_HEART_SIZE*last_i,self.heart_spacing/2))
                   
 class UICoins(UIState):
-    def __init__(self, inventory, coin_img, bg_bottom=60):
-        super().__init__()
+    def __init__(self, inventory, coin_img,debug, bg_bottom=60):
+        super().__init__(debug)
         self.inventory = inventory
         
         self.coins_bg_r = pygame.Rect(0,bg_bottom,120,32)
@@ -127,11 +137,12 @@ class UICoins(UIState):
     
     @external
     def add_floating_coin(self):
-        self.floating_coins.add(FloatingUI(self.floating_end_rect,self.floating_img))
+        self.floating_coins.add(FloatingUI(self.floating_end_rect,self.floating_img,self.debug))
     
     @runtime
     def update(self, dt):
         self.floating_coins.update(dt)
+        self.debug.updates += 1
     
     @override
     def draw(self):
@@ -145,6 +156,7 @@ class UICoins(UIState):
         self.display_surface.blit(self.coin_amount_surf,self.coin_amount_rect)
         # floating
         self.floating_coins.draw(self.display_surface)
+        self.debug.blits += 5
         
     def update_coins(self):
         self.coin_amount_surf = self.coins_font.render(f"{self.inventory.coins}",True,"white")
@@ -154,7 +166,7 @@ class UICoins(UIState):
         
 class UIInventory(UIState):
     def __init__(self, inventory, player):
-        super().__init__()
+        super().__init__(player.debug)
         self.inventory = inventory
         self.player = player
         self.inventory.add_floating_item = self.add_floating_item
@@ -185,11 +197,12 @@ class UIInventory(UIState):
         surf = self.inventory.get_item_surf_only(name)
         w,h = surf.get_size(); scale = DROP_SCALE
         surf = pygame.transform.scale(surf,(int(w*scale),int(h*scale)))
-        self.floating_items.add(FloatingUI(self.floating_end_rect,surf,True))
+        self.floating_items.add(FloatingUI(self.floating_end_rect,surf,self.debug,True))
     
     @runtime
     def update(self, dt):
         self.floating_items.update(dt)
+        self.debug.updates += 1
     
     @override
     def draw(self):
@@ -200,7 +213,7 @@ class UIInventory(UIState):
         pygame.draw.polygon(self.display_surface,UI_BG_COL,(self.bg_rect.bottomright,self.bg_rect.topright,(self.bg_rect.right+self.poly_offset,self.bg_rect.top)))
         # slots
         for i,slot_r in enumerate(self.slot_rects):
-            slot_r.draw()
+            slot_r.draw(self.debug)
             slot = self.inventory.slots[i]
             if not slot.is_empty():
                 surf,r = self.inventory.get_item_surf(slot.item.name)
@@ -213,12 +226,53 @@ class UIInventory(UIState):
                     pygame.draw.rect(self.display_surface,UI_BG_COL,name_rect.inflate(10,0),0,4)
                     self.display_surface.blit(name_surf,name_rect)
                     if self.player.key_data["q"]: self.drop_item(slot.item)
+                    self.debug.blits += 2
+                self.debug.blits += 1
         # items
         self.floating_items.draw(self.display_surface)
+        self.debug.blits += 3+len(self.floating_items.sprites())
     
     @internal
     def drop_item(self, item): self.player.drop_item(item)
         
 class UIOverlay(UIState):
-    def __init__(self, ui_assets):
-        super().__init__()
+    def __init__(self, ui_assets, debug):
+        super().__init__(debug)
+
+class UIBoss(UIState):
+    def __init__(self, debug):
+        super().__init__(debug)
+        self.current_boss = None
+        self.font = pygame.font.Font("assets/fonts/main.ttf",50)
+        
+        bar_rect = pygame.Rect(0,0,500,20)
+        bar_rect.midbottom = (H_WIDTH,HEIGHT-10)
+        self.health_bar = HealthBar(bar_rect,HEALTH_BAR_COL,5,True,HEALTH_OUTLINE_COL)
+        self.bg_rect = pygame.Rect(0,0,520,45)
+        self.bg_rect.midbottom = (H_WIDTH,HEIGHT)
+        
+    def start(self, boss):
+        self.current_boss = boss
+        self.name_surf = self.font.render(boss.name,True,"white")
+        self.name_bg_r = pygame.Rect(0,0,self.name_surf.get_width()+20,self.name_surf.get_height()-15)
+        self.name_bg_r.midbottom = self.bg_rect.midtop
+        self.name_rect = self.name_surf.get_rect(center=self.name_bg_r.center)
+        
+    def end(self):
+        self.current_boss = None
+        
+    def draw(self):
+        if self.current_boss:
+            pygame.draw.rect(self.display_surface,UI_BG_COL,self.bg_rect)
+            pygame.draw.polygon(self.display_surface,UI_BG_COL,(
+                self.bg_rect.topleft,self.bg_rect.bottomleft,(self.bg_rect.left-20,self.bg_rect.bottom) ))
+            pygame.draw.polygon(self.display_surface,UI_BG_COL,(
+                self.bg_rect.topright,self.bg_rect.bottomright,(self.bg_rect.right+20,self.bg_rect.bottom) ))
+            self.health_bar.draw(self.current_boss.health,self.current_boss.max_health)
+            pygame.draw.rect(self.display_surface,UI_BG_COL,self.name_bg_r)
+            pygame.draw.polygon(self.display_surface,UI_BG_COL,(
+                self.name_bg_r.topleft,self.name_bg_r.bottomleft,(self.name_bg_r.left-20,self.name_bg_r.bottom) ))
+            pygame.draw.polygon(self.display_surface,UI_BG_COL,(
+                self.name_bg_r.topright,self.name_bg_r.bottomright,(self.name_bg_r.right+20,self.name_bg_r.bottom) ))
+            self.display_surface.blit(self.name_surf,self.name_rect)
+            self.debug.blits += 8

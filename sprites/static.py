@@ -4,9 +4,9 @@ from .generic import *
 from .animated import FxEffect
         
 class Drop(Generic):
-    def __init__(self,pos,vel,surf,name,groups,particle_frames,particle_groups):
+    def __init__(self,pos,vel,surf,name,groups,particle_frames,particle_groups,room):
         w,h = surf.get_size(); scale = DROP_SCALE
-        super().__init__(pos,pygame.transform.scale(surf,(int(w*scale),int(h*scale))),groups,None,True)
+        super().__init__(pos,pygame.transform.scale(surf,(int(w*scale),int(h*scale))),groups,room,True)
         self.name = name
         self.particle_frames = particle_frames
         self.particle_groups = particle_groups
@@ -24,7 +24,7 @@ class Drop(Generic):
     
     @external
     def collect(self):
-        particle = FxEffect(self.rect.center,self.particle_frames,self.particle_groups,1,0.8)
+        particle = FxEffect(self.rect.center,self.particle_frames,self.particle_groups,self.room,1,0.8)
         self.kill()
     
     @runtime
@@ -51,10 +51,11 @@ class Drop(Generic):
     @override
     def update(self, dt):
         self.move(dt)
+        self.debug.updates += 2
         
 class Skull(Generic):
-    def __init__(self, pos, surf, groups):
-        super().__init__(pos, surf, groups, False)
+    def __init__(self, pos, surf, groups, room):
+        super().__init__(pos, surf, groups, room,False)
         
         if randint(0,100) <= 50: self.image = pygame.transform.flip(self.image,True,False)
         
@@ -62,8 +63,8 @@ class Skull(Generic):
         self.rect.center = (self.rect.centerx+offset.x,self.rect.centery+offset.y)
         
 class Wall(Generic):
-    def __init__(self, pos, surf, groups, dungeon,name):
-        super().__init__(pos, surf, groups, dungeon)
+    def __init__(self, pos, surf, groups, room,name):
+        super().__init__(pos, surf, groups, room)
         rect = self.rect.copy()
         inflate_amount = 50
         if "top" in name and "corner" in name:
@@ -77,11 +78,11 @@ class Wall(Generic):
         self.hitbox = rect.copy()
         
 class Collider(Generic):
-    def __init__(self, pos, size, group):
-        super().__init__(pos,pygame.Surface(size),group,False)
+    def __init__(self, pos, size, group, room):
+        super().__init__(pos,pygame.Surface(size),group,room,False)
         
 class InventoryInfoMsg(Generic):
-    def __init__(self, pos, message, font, drop, groups):
+    def __init__(self, pos, message, font, drop, groups, room):
         self.font = font
         self.message = message
         self.drop = drop
@@ -90,7 +91,7 @@ class InventoryInfoMsg(Generic):
         self.can_disappear = False
         self.born_time = pygame.time.get_ticks()
         self.cooldown = 0.8*1000
-        super().__init__(pos,surf,groups,None,True)
+        super().__init__(pos,surf,groups,room,True)
         
     def update(self, dt):
         if self.can_disappear:
@@ -99,10 +100,12 @@ class InventoryInfoMsg(Generic):
             else: self.image.set_alpha(int(self.alpha))
         else:
             if pygame.time.get_ticks() - self.born_time >= self.cooldown: self.can_disappear = True
+        self.debug.updates += 1
 
 class FloatingUI(pygame.sprite.Sprite):
-    def __init__(self, end_rect, image, center=False):
+    def __init__(self, end_rect, image, debug, center=False):
         super().__init__()
+        self.debug = debug
         
         self.center = center
         self.image = image
@@ -119,5 +122,6 @@ class FloatingUI(pygame.sprite.Sprite):
         self.dir += self.target_dir*2
         self.pos += self.dir*self.speed*dt
         self.rect.center = (round(self.pos.x),round(self.pos.y))
-        if self.rect.colliderect(self.end_rect) or self.rect.right < 0 or self.rect.top < 0: self.kill()
+        if self.rect.colliderect(self.end_rect) or self.rect.right < 0 or self.rect.top < 0: self.kill(); self.debug.loaded_entities -= 1
+        self.debug.updates += 1
         
