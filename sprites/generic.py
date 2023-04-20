@@ -45,7 +45,7 @@ class Animated(Generic):
     @override
     def update(self,dt):
         self.animate(dt)
-        self.debug.updates += 2
+        self.debug.updates += 1
         
 class AnimatedStatus(Animated):
     def __init__(self, pos, animations, status, groups,room=None, pos_center=False,draw_secondary=True,player_damage=0):

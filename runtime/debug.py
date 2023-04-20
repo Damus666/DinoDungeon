@@ -1,7 +1,6 @@
 from settings import *
 import pygame
-import psutil
-import math
+import psutil, os
 
 class Debug:
     def __init__(self, clock):
@@ -14,14 +13,13 @@ class Debug:
         self.bg_rect = pygame.Rect((0,0),(WIDTH/6,HEIGHT-self.top*2))
         self.bg_rect.midleft=(0,H_HEIGHT)
         
-        self.process = psutil.Process()
+        self.process = psutil.Process(os.getpid())
         self.fps = 0
         self.better_fps = 0
         self.worse_fps = -1
         self.last_fpss = []
         self.avg_fps = 0
         self.next_avg = 0
-        self.cpu = 0
         self.ram = 0
         self.loaded_sprites = 0
         self.loaded_entities = 0
@@ -33,7 +31,8 @@ class Debug:
         self.last_check = 0
         self.check_cooldown = 1000
         self.blit_data = []
-        
+    
+    @runtime
     def update(self, dt):
         if self.active:
             self.rendering = 0
@@ -51,37 +50,38 @@ class Debug:
                 if self.fps > self.better_fps: self.better_fps = self.fps
                 
                 self.last_check = pygame.time.get_ticks()
-            self.cpu = self.process.cpu_percent()
             self.ram = self.process.memory_info().rss / (1024 * 1024)
             self.dt = dt*1000
             self.session_time = pygame.time.get_ticks()/1000
-        
+    
+    @helper
+    @runtime      
+    def get_fps_color(self,value):return "green" if value >= 150 else "red" if value < 40 else "yellow"
+    def get_updates_color(self,value):return "green" if value < 200 else "red" if value > 1000 else "yellow"
+    def get_blits_color(self, value): return "green" if value < 1000 else "red" if value > 3000 else "yellow"
+    
+    @runtime
     def update_blit(self):
         self.blit_data = []
         texts = [
-            f"{self.fps:.0f} FPS",
-            f"- Average: {self.avg_fps:.0f}",
-            f"- MAX: {self.better_fps:.0f}",
-            f"- MIN: {self.worse_fps:.0f}",
-            "",
-            f"RAM: {self.ram:.0f} MB",
-            f"CPU: {self.cpu:.0f} %",
-            "",
-            f"Blitted Entities: {self.rendering}",
-            f"Blits: ~{self.blits+self.rendering}",
-            f"Updates: ~{self.updates}",
-            f"Frame Time: {self.dt:.0f} ms",
-            "",
-            f"Loaded Sprites: {self.loaded_sprites}",
-            f"Loaded Entities: {self.loaded_entities}",
-            f"Session Time: {self.session_time:.0f} s",
+            (f"{self.fps:.0f} FPS",self.get_fps_color(self.fps)),
+            (f"- Average: {self.avg_fps:.0f}",self.get_fps_color(self.avg_fps)),
+            (f"- MAX: {self.better_fps:.0f}",self.get_fps_color(self.better_fps)),
+            (f"- MIN: {self.worse_fps:.0f}",self.get_fps_color(self.worse_fps)),
+            ("","white"),
+            (f"RAM: {self.ram:.0f} MB",CYAN),
+            (f"Blitted Entities: {self.rendering}",self.get_blits_color(self.rendering)),
+            (f"Blits: ~{self.blits+self.rendering}",self.get_blits_color(self.blits+self.rendering)),
+            (f"Updates: ~{self.updates}",self.get_updates_color(self.updates)),
+            (f"Frame Time: {self.dt:.0f} ms",self.get_fps_color(self.fps)),
+            ("","white"),
+            (f"Loaded Sprites: {self.loaded_sprites}","white"),
+            (f"Loaded Entities: {self.loaded_entities}","white"),
+            (f"Session Time: {self.session_time:.0f} s","white"),
             
         ]
         top = self.top+DEBUG_S
-        i = 0
-        for txt in texts:
-            col = "white"
-            if i == 0: col = CYAN; i=1
+        for txt,col in texts:
             surf = self.font.render(txt,True,col)
             rect = surf.get_rect(topleft = (DEBUG_S,top))
             top += DEBUG_SPACING
@@ -90,10 +90,12 @@ class Debug:
         rect = surf.get_rect(bottomleft = (DEBUG_S,self.bg_rect.bottom-DEBUG_S))
         self.blit_data.append((surf,rect))
     
+    @runtime
     def event(self, event):
         if event.type == pygame.KEYDOWN and event.key == pygame.K_F3:
             self.active = not self.active
-        
+    
+    @runtime
     def draw(self):
         if self.active:
             self.update_blit()

@@ -12,7 +12,8 @@ class UI:
             "health":UIHealth(assets,player.stats,player.debug),
             "coins":UICoins(player.inventory,coin_img,player.debug),
             "inventory":UIInventory(player.inventory,player),
-            "boss":UIBoss(player.debug)
+            "boss":UIBoss(player.debug),
+            "weapon":UIWeapon(player)
         }
         self.state_values = self.states.values()
         

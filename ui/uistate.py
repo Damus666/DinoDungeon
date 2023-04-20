@@ -1,4 +1,4 @@
-import pygame
+import pygame, math
 from settings import *
 from support import *
 from sprites.sprites import FloatingUI
@@ -95,8 +95,8 @@ class UIHealth(UIState):
             pygame.transform.scale(self.heart_full,(UI_HEART_SIZE,UI_HEART_SIZE)),\
             pygame.transform.scale(self.heart_half,(UI_HEART_SIZE,UI_HEART_SIZE))
         self.heart_spacing = UI_SPACING/2
-        self.range_5 = range(5)
-        self.hearts_bg_r = pygame.Rect(0,0,200,bg_bottom)
+        self.range_5 = range(7)
+        self.hearts_bg_r = pygame.Rect(0,0,300,bg_bottom)
         
     def draw(self):
         # draw bg
@@ -186,6 +186,7 @@ class UIInventory(UIState):
             
         rects = sorted(rects,key=lambda r: r.centerx)
         self.slot_rects = [CornerRect(rect,UI_CORNER_W,UI_SLOT_BG_COL) for rect in rects]
+        self.selected_slot_rects = [CornerRect(rect,UI_CORNER_W,SLOT_SELECTED_COL) for rect in rects]
         
         self.item_font = pygame.font.Font("assets/fonts/main.ttf",30)
         
@@ -213,8 +214,8 @@ class UIInventory(UIState):
         pygame.draw.polygon(self.display_surface,UI_BG_COL,(self.bg_rect.bottomright,self.bg_rect.topright,(self.bg_rect.right+self.poly_offset,self.bg_rect.top)))
         # slots
         for i,slot_r in enumerate(self.slot_rects):
-            slot_r.draw(self.debug)
             slot = self.inventory.slots[i]
+            slot_r.draw(self.debug) if (slot.item is None or slot.item.name != self.inventory.weapon) else self.selected_slot_rects[i].draw(self.debug)
             if not slot.is_empty():
                 surf,r = self.inventory.get_item_surf(slot.item.name)
                 r.center = slot_r.center
@@ -227,6 +228,14 @@ class UIInventory(UIState):
                     self.display_surface.blit(name_surf,name_rect)
                     if self.player.key_data["q"]: self.drop_item(slot.item)
                     self.debug.blits += 2
+                    if slot.item and (slot.item.name in CAN_CONSUME or slot.item.name in CAN_EQUIP):
+                        txt = "Equip [F]" if slot.item.name in CAN_EQUIP else "Consume [F]"
+                        surf = self.item_font.render(txt,False,"white")
+                        rect = surf.get_rect(midtop = (name_rect.centerx,name_rect.bottom+2))
+                        pygame.draw.rect(self.display_surface,UI_BG_COL,rect.inflate(10,0),0,4)
+                        self.display_surface.blit(surf,rect)
+                        if self.player.key_data["f"]: self.item_interact(slot.item)
+                        self.debug.blits += 2
                 self.debug.blits += 1
         # items
         self.floating_items.draw(self.display_surface)
@@ -234,6 +243,7 @@ class UIInventory(UIState):
     
     @internal
     def drop_item(self, item): self.player.drop_item(item)
+    def item_interact(self, item): self.player.item_interact(item)
         
 class UIOverlay(UIState):
     def __init__(self, ui_assets, debug):
@@ -245,20 +255,30 @@ class UIBoss(UIState):
         self.current_boss = None
         self.font = pygame.font.Font("assets/fonts/main.ttf",50)
         
+        self.should_disappear = False
+        self.disappear_time = 3000
+        self.defeat_time = 0
+        
         bar_rect = pygame.Rect(0,0,500,20)
         bar_rect.midbottom = (H_WIDTH,HEIGHT-10)
         self.health_bar = HealthBar(bar_rect,HEALTH_BAR_COL,5,True,HEALTH_OUTLINE_COL)
         self.bg_rect = pygame.Rect(0,0,520,45)
         self.bg_rect.midbottom = (H_WIDTH,HEIGHT)
         
-    def start(self, boss):
+    def start(self, boss, name=None):
         self.current_boss = boss
-        self.name_surf = self.font.render(boss.name,True,"white")
+        self.name_surf = self.font.render(boss.name if not name else name,True,"white")
         self.name_bg_r = pygame.Rect(0,0,self.name_surf.get_width()+20,self.name_surf.get_height()-15)
         self.name_bg_r.midbottom = self.bg_rect.midtop
         self.name_rect = self.name_surf.get_rect(center=self.name_bg_r.center)
         
     def end(self):
+        self.start(self.current_boss,"DEFEATED")
+        self.defeat_time = pygame.time.get_ticks()
+        self.should_disappear = True
+        
+    def end_fr(self):
+        self.should_disappear = False
         self.current_boss = None
         
     def draw(self):
@@ -276,3 +296,44 @@ class UIBoss(UIState):
                 self.name_bg_r.topright,self.name_bg_r.bottomright,(self.name_bg_r.right+20,self.name_bg_r.bottom) ))
             self.display_surface.blit(self.name_surf,self.name_rect)
             self.debug.blits += 8
+            if self.should_disappear:
+                if pygame.time.get_ticks()-self.defeat_time >= self.disappear_time:
+                    self.end_fr()
+
+class UIWeapon(UIState):
+    def __init__(self, player):
+        super().__init__(player.debug)
+        self.player = player
+        self.inventory = self.player.inventory
+        self.weapon_original_s = None
+        self.weapon_surf = None
+        self.weapon_rect = None
+        self.center = vector(H_WIDTH,H_HEIGHT)
+        o = TILE_SIZE//4
+        self.offset_r = vector(o,TILE_SIZE//2)
+        self.offset_l = vector(-o,TILE_SIZE//2)
+        self.mul = TILE_SIZE//2
+        
+    def change_weapon(self, surf):
+        self.weapon_original_s = pygame.transform.scale_by(surf,1.2)
+        
+    def get_data(self):
+        mouse_pos = pygame.mouse.get_pos()
+        direction = vector(mouse_pos)-self.center
+        if direction.magnitude() != 0: direction.normalize_ip()
+        return self.weapon_rect,(self.offset_r if self.player.orientation == "right" else self.offset_l)+direction*self.mul
+        
+    def update(self, dt):
+        if self.inventory.weapon:
+            mouse_pos = pygame.mouse.get_pos()
+            direction = vector(mouse_pos)-self.center
+            if direction.magnitude() != 0: direction.normalize_ip()
+            center = self.center+(self.offset_r if self.player.orientation == "right" else self.offset_l)+direction*self.mul
+            angle = math.degrees(math.atan2(-direction.y,direction.x))-90
+            self.weapon_surf = pygame.transform.rotate(self.weapon_original_s,angle)
+            self.weapon_rect = self.weapon_surf.get_rect(center=center)
+        
+    def draw(self):
+        if self.inventory.weapon:
+            self.display_surface.blit(self.weapon_surf,self.weapon_rect)
+            self.debug.blits += 1

@@ -34,9 +34,9 @@ class Player(AnimatedStatus):
         
         self.draw_data = {"door":None,"crate":None,"hero":None}
         self.font1 = pygame.font.Font("assets/fonts/main.ttf",30)
-        self.key_data = {"q":False}
+        self.key_data = {"q":False,"f":False}
         
-        self.give_starter_items("Portal Key","Silver Key","Quartz Key","Prismarine Key","Orc Mask",coins=30)
+        self.give_starter_items("Silver Key",coins=30)
     
     @extend(__init__)
     def give_starter_items(self, *items,coins=0):
@@ -44,6 +44,7 @@ class Player(AnimatedStatus):
             self.inventory.add_item(item_from_name(item),True)
         self.inventory.add_coins(coins,True)
     
+    # actions
     @external
     def change_room(self, room):
         self.current_room = room
@@ -64,8 +65,48 @@ class Player(AnimatedStatus):
         if button.item_name == "coins": self.inventory.add_coins(button.amount)
         else:
             for i in range(button.amount): self.current_room.drop_item(item_from_name(button.item_name),self.hitbox.center)
+            
+    def drop_item(self, item):
+        self.inventory.remove_item(item.name)
+        self.current_room.drop_item(item,(self.pos.x,self.pos.y+TILE_SIZE*1.5))
     
-    @runtime
+    def item_interact(self, item):
+        if item.name in CAN_EQUIP:
+            self.inventory.weapon = item.name if self.inventory.weapon != item.name else None
+            if self.inventory.weapon:
+                self.dungeon.ui.states["weapon"].change_weapon(self.inventory.get_item_surf_only(self.inventory.weapon))
+        elif item.name in CAN_CONSUME:
+            consumed, error = self.stats.consume_item(item)
+            if consumed: self.inventory.consume_item(item)
+            else: self.spawn_error_msg(error)
+            
+    def generic_attack(self):
+        if self.inventory.weapon:
+            stats = ITEM_STATS[self.inventory.weapon]
+            damage,area = stats["damage"],stats["area"]
+            rect,offset = self.dungeon.ui.states["weapon"].get_data()
+            rect = rect.copy()
+            rect.center = self.pos + offset
+            for enemy in self.current_room.enemies:
+                if rect.colliderect(enemy.rect):
+                    enemy.damage(damage)
+                    if not area: break
+            
+    
+    # messages
+    @internal
+    def drop_collect_fail(self, drop):
+        reason = self.inventory.add_fail_reason(drop.name)
+        for inv_msg in self.current_room.inv_msgs:
+            if inv_msg.drop == drop: return
+        InventoryInfoMsg(drop.rect.center,ADD_FAIL_MESSAGES[reason],self.font1,drop,[self.current_room.visible_top,self.current_room.updates,self.current_room.inv_msgs],self.current_room)
+    @internal
+    def spawn_error_msg(self, message):
+        pos = (self.rect.centerx,self.rect.bottom+TILE_SIZE//2)
+        InventoryInfoMsg(pos,message,self.font1,None,[self.current_room.visible_top,self.current_room.updates,self.current_room.inv_msgs],self.current_room)
+    
+    # RUNTIME
+    # event
     def input(self):
         keys = pygame.key.get_pressed()
         
@@ -84,13 +125,20 @@ class Player(AnimatedStatus):
     
     def reset_event(self):
         self.key_data = dict.fromkeys(self.key_data.keys(),False)
-        
-    def drop_item(self, item):
-        self.inventory.remove_item(item.name)
-        self.current_room.drop_item(item,(self.pos.x,self.pos.y+TILE_SIZE*1.5))
+            
+    def items_shortcuts(self, key):
+        if key == pygame.K_f:
+            self.inventory.weapon = None
+        name= pygame.key.name(key)
+        if name.isdecimal():
+            name = int(name)
+            slot = self.inventory.slots[name-1]
+            if not slot.is_empty():
+                self.item_interact(slot.item)
     
     def event(self, e):
         if e.type == pygame.KEYDOWN:
+            self.items_shortcuts(e.key)
             if e.key == pygame.K_e:
                 broken = self.crate_collisions(True)
                 if not broken:
@@ -100,7 +148,13 @@ class Player(AnimatedStatus):
                     
             if e.key == pygame.K_q:
                 self.key_data["q"] = True
+            if e.key == pygame.K_f:
+                self.key_data["f"] = True
+        elif e.type == pygame.MOUSEBUTTONDOWN:
+            if e.button == 1:
+                self.generic_attack()
     
+    # generic
     def move(self, dt):
         self.pos.x += self.direction.x*self.speed*dt
         self.rect.centerx = round(self.pos.x)
@@ -113,7 +167,15 @@ class Player(AnimatedStatus):
         self.collisions("vertical")
         
         self.damage_hitbox.center = self.hitbox.center
-        
+ 
+    def get_status(self):
+        status = "idle"
+        if self.direction.x != 0 or self.direction.y != 0: status = "run"
+        if self.orientation == "left": self.animations = self.flipped_animations
+        else: self.animations = self.original_animations
+        self.set_status(status, True)
+     
+    # collisions   
     def collisions(self, direction):
         for sprite in self.current_room.collidable:
             if sprite.hitbox.colliderect(self.hitbox):
@@ -127,13 +189,6 @@ class Player(AnimatedStatus):
                     self.hitbox.bottom = sprite.hitbox.top if self.direction.y > 0 else self.hitbox.bottom
                     self.rect.centery, self.pos.y = self.hitbox.centery-self.hitbox_offset, self.hitbox.centery-self.hitbox_offset
                     self.direction.y = 0
-    
-    def get_status(self):
-        status = "idle"
-        if self.direction.x != 0 or self.direction.y != 0: status = "run"
-        if self.orientation == "left": self.animations = self.flipped_animations
-        else: self.animations = self.original_animations
-        self.set_status(status, True)
         
     def door_collisions(self, is_event):
         if self.dungeon.transition.active or self.dungeon.dialogue.active: return
@@ -175,11 +230,13 @@ class Player(AnimatedStatus):
             
     def spike_collisions(self):
         for spike in self.current_room.spikes:
+            if spike.hitbox.colliderect(self.damage_hitbox) and spike.is_on:
+                self.stats.damage(spike.player_damage)
+                spike.damaged(); continue
             if self.pos.distance_to(spike.pos) <= SPIKE_ACTIVATION_DIST: 
                 if not spike.is_on: spike.is_close()
             else:
                 if spike.is_on: spike.is_far()
-            if spike.hitbox.colliderect(self.damage_hitbox): self.stats.damage(spike.player_damage)
                     
     def coin_collisions(self):
         for coin in self.current_room.coins:
@@ -190,13 +247,8 @@ class Player(AnimatedStatus):
             if drop.hitbox.colliderect(self.hitbox) and drop.can_collect:
                 if self.inventory.can_add(drop.name): self.inventory.add_item(item_from_name(drop.name)); drop.collect()
                 else: self.drop_collect_fail(drop)
-                    
-    def drop_collect_fail(self, drop):
-        reason = self.inventory.add_fail_reason(drop.name)
-        for inv_msg in self.current_room.inv_msgs:
-            if inv_msg.drop == drop: return
-        InventoryInfoMsg(drop.rect.center,ADD_FAIL_MESSAGES[reason],self.font1,drop,[self.current_room.visible_top,self.current_room.updates,self.current_room.inv_msgs],self.current_room)
     
+    # update
     def draw_extra(self,offset):
         if self.draw_data["door"]:
             requiredkey = self.draw_data["door"]["key"]

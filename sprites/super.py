@@ -80,7 +80,7 @@ class Crate(Generic):
         self.smoke_groups = smoke_groups
         self.coin_data = coin_data
         self.drop_groups = drop_groups
-        self.coin_amount = randint(5,20)
+        self.coin_amount = randint(20,30)
         self.items = []
         if "items" in self.crate_data:
             self.items = parse_items_string(self.crate_data)

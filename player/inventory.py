@@ -15,6 +15,11 @@ class Inventory:
         self.coins = 0
         self.ui_changed = False 
         
+        self.weapon = None
+        
+    def consume_item(self, item):
+        self.remove_item(item.name)
+        
     def parse_item_sprites(self, assets):
         sprites = {}
         for name, img in assets.items():
@@ -100,7 +105,7 @@ class Inventory:
 @singleton   
 class Stats:
     def __init__(self):
-        self.max_health = 10
+        self.max_health = 14
         self.health = self.max_health
         
         self.max_actions = 5
@@ -108,6 +113,13 @@ class Stats:
         
         self.alive = True
         self.last_damage = pygame.time.get_ticks()-INVULNERABILITY_COOLDOWN
+        
+    def consume_item(self, item):
+        if item.name == "Healing Potion":
+            if self.health < self.max_health: self.health = self.max_health
+            else: return False, "No need to heal"
+            return True,None
+        return False, "[ERR] Could not consume item"
     
     # action
     def reset_actions(self): self.actions = self.max_actions

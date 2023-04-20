@@ -77,9 +77,12 @@ class Room:
             if not real_name.strip(): real_name = asset_name
             scaled = RoomGenerator.scale_pos(enemy_pos)
             if is_boss:
-                Boss(scaled,assets[asset_name],[self.visible_objects,self.updates,self.enemies],real_name,self.name_font,self)
+                if "ogre" in asset_name:
+                    OgreBoss(scaled,assets[asset_name],[self.visible_objects,self.updates,self.enemies],real_name,self.name_font,self,assets["weapons"]["weapon_mace"],
+                             (assets["fx"]["MagicBarrier"],[self.visible_top,self.updates]),
+                             (assets["ui"]["emark"],[self.visible_top,self.updates]))
             else:
-                EnemyAttacker(scaled, assets[asset_name],[self.visible_objects,self.updates,self.enemies],real_name,self.name_font,self)
+                SmallEnemy(scaled, assets[asset_name],[self.visible_objects,self.updates,self.enemies],real_name,self.name_font,self)
         
         self.build_bg()
     
@@ -164,6 +167,7 @@ class Room:
         if not secondary:
             for door in self.doors: door.draw_name(self.display_surface,self.offset)
             for hero in self.heros: hero.draw_name(self.display_surface,self.offset)
+            for enemy in self.enemies: enemy.draw_extra(self.display_surface,self.offset)
         
         if not secondary: self.player.draw(self.offset)
         self.visible_top.custom_draw(self.offset,secondary)

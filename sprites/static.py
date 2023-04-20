@@ -106,6 +106,7 @@ class FloatingUI(pygame.sprite.Sprite):
     def __init__(self, end_rect, image, debug, center=False):
         super().__init__()
         self.debug = debug
+        self.debug.loaded_entities += 1
         
         self.center = center
         self.image = image
@@ -124,4 +125,14 @@ class FloatingUI(pygame.sprite.Sprite):
         self.rect.center = (round(self.pos.x),round(self.pos.y))
         if self.rect.colliderect(self.end_rect) or self.rect.right < 0 or self.rect.top < 0: self.kill(); self.debug.loaded_entities -= 1
         self.debug.updates += 1
-        
+
+class WarningMsg(Generic):
+    def __init__(self, pos, surf, groups, room):
+        super().__init__(pos,surf,groups,room,True,False)
+        self.born_time = pygame.time.get_ticks()
+        self.cooldown = 1000
+    
+    @override
+    def update(self, dt):
+        if pygame.time.get_ticks()-self.born_time >= self.cooldown:
+            self.kill()

@@ -36,7 +36,7 @@ class Coin(Animated):
     def update(self, dt):
         self.move(dt)
         self.animate(dt)
-        self.debug.updates += 3
+        self.debug.updates += 1
         
 class Spike(Animated):
     def __init__(self, pos, assets, groups, room):
@@ -47,6 +47,8 @@ class Spike(Animated):
         self.close_frames = list(reversed(assets))
         self.frame_len = len(assets)
         self.is_on = False
+        self.last_hit = pygame.time.get_ticks()
+        self.hit_cooldown = 3000
         
         super().__init__(pos, self.open_frames, groups, room,False,True,SPIKE_DAMAGE)
         self.pos = vector(self.rect.center)
@@ -67,13 +69,19 @@ class Spike(Animated):
     
     @external
     def is_close(self):
+        if pygame.time.get_ticks() - self.last_hit <= self.hit_cooldown: self.is_on = False; return
         if not self.is_on: self.is_on = True; self.frame_index = 0
         self.debug.updates += 1
         
     @external
     def is_far(self):
         if self.is_on: self.is_on = False; self.frame_index = 0
-        self.debug.updates += 2
+        self.debug.updates += 1
+        
+    @external
+    def damaged(self):
+        self.is_far()
+        self.last_hit = pygame.time.get_ticks()
 
 class Fountain(Animated):
     def __init__(self, pos, assets, groups, name, col, room):

@@ -26,6 +26,7 @@ class AssetLoader:
         self.assets["flasks"] = import_folder_dict("flasks")
         # ui
         self.assets["ui"] = import_folder_dict("ui",True,False)
+        self.assets["ui"]["emark"] = load_scale("ui/emark",SCALE_FACTOR/1.5)
         # weapons
         self.assets["weapons"] = import_folder_dict("weapons")
         # objects

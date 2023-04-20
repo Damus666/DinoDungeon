@@ -8,7 +8,7 @@ from support import *
 @singleton
 @helper
 class MapLoader:
-    def __init__(self):
+    def __init__(self, name):
         self.room_pos = []
         self.corridor_pos = []
         self.door_pos = []
@@ -22,6 +22,8 @@ class MapLoader:
         ], "name": "Corridor", "heros": [], "enemies": [],"portal":False}
         self.connections = []
         self.player_room_index = []
+        
+        self.load(name)
 
     def load(self, name):
         with open(f"maps/{name}.json", "r") as file:

@@ -56,7 +56,9 @@ INTERACTION_DATA = {
 }
 
 ENEMY_DATA = {
-    "masked_orc":("Orc Mask","health_bar",10,"attack",80),
-    "The Guard":("Ogre Head","lock_room,boss_ui",50,"attack",110),
-    "Hell's Claws":("Portal Key","lock_room,boss_ui",200,"attack",165)
+    "masked_orc":(("Orc Mask",),"health_bar",12,"attack",80,{"damage":1}),
+    "The Guard":(("Ogre Head","Mace"),"lock_room,boss_ui",100,"attack",110,{}),
+    "Hell's Claws":(("Portal Key"),"lock_room,boss_ui",200,"attack",165,{}),
+    "chort":([],"health_bar",9,"attack",100,{"damage":1}),
+    "necromancer":([],"health_bar",15,"attack",60,{"damage":2}),
 }

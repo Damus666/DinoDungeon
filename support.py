@@ -11,14 +11,15 @@ class HealthBar:
     def __init__(self, rect, fill_color, corner_w, has_outline=False, outline_col=None):
         if not has_outline:
             self.bg_rect = CornerRect(rect.inflate(4,4),corner_w,UI_BG_COL)
-            self.fill_rect = CornerRect(rect,corner_w,fill_color)
+            self.fill_rect = CornerRect(rect.copy(),corner_w,fill_color)
             self.original = rect
         else:
-            self.bg_rect = CornerRect(rect,corner_w,UI_BG_COL)
-            self.fill_rect = CornerRect(rect,corner_w,fill_color)
+            self.bg_rect = CornerRect(rect.copy(),corner_w,UI_BG_COL)
+            self.fill_rect = CornerRect(rect.copy(),corner_w,fill_color)
             self.original = rect
             self.outline_rect = CornerRect(rect.inflate(4,4),corner_w,outline_col)
         self.has_outline = has_outline
+        self.corner_w = corner_w
         
     def draw(self, current_health, max_health):
         if self.has_outline: self.outline_rect.draw()
@@ -28,7 +29,8 @@ class HealthBar:
         if self.fill_rect.original.w != w:
             self.fill_rect.original.w = w
             self.fill_rect.refresh()
-        self.fill_rect.draw()
+        if w >= self.corner_w*2:
+            self.fill_rect.draw()
 
 class CornerRect:
     def __init__(self, rect:pygame.Rect, border_size, color):

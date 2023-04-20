@@ -16,7 +16,7 @@ import maps.DungeonFeatures
 
 @singleton
 class Dungeon:
-    def __init__(self, assets, clock):
+    def __init__(self, assets, clock, map_loaders, map_name):
         # setup
         self.display_surface = pygame.display.get_surface()
         self.assets = assets
@@ -26,12 +26,12 @@ class Dungeon:
         self.player = Player(self.assets["lizard_f"],self)
         self.dnc = DNC(self.debug)
         self.ui = UI(self.assets["ui"],self.dnc,self.assets["coin"]["anim"][0],self.player)
-        self.map_loader = MapLoader()
+        self.maps:dict[str,MapLoader] = map_loaders
+        self.map_loader:MapLoader = map_loaders[map_name]
         self.transition = Transition(self)
         self.dialogue = Dialogue(self)
         
         # init
-        self.map_loader.load("DungeonFeatures")
         self.map_script = maps.DungeonFeatures
         self.debug.loaded_sprites = count_pngs("assets")
         
@@ -95,6 +95,7 @@ class Dungeon:
     
     @runtime  
     def run(self, dt):
+        # update
         self.event_loop()
         self.debug.update(dt)
         self.dnc.update(dt)
@@ -102,7 +103,7 @@ class Dungeon:
         self.transition.update(dt)
         self.dialogue.update(dt)
         self.ui.update(dt)
-        
+        # draw 
         self.display_surface.fill(BG_COL)
         self.current_room.draw_bg()
         for room,door in self.current_room.next_rooms: 

@@ -3,7 +3,7 @@ from pygame.math import Vector2 as vector
 # window
 WINDOW_SIZES = WIDTH, HEIGHT = 1920, 1080
 H_WIDTH, H_HEIGHT = WIDTH//2, HEIGHT // 2
-FPS = 0
+FPS = 0 # unlimited
 
 # constants
 ORIGINAL_TILE_SIZE = 16
@@ -12,6 +12,11 @@ SCALE_FACTOR = TILE_SIZE/ORIGINAL_TILE_SIZE
 ANIMATION_SPEED = 8
 TRANSITION_SPEED = 10
 TRANSITION_THRESHOLD = 30
+
+# maps
+MAP_NAMES = [
+    "DungeonFeatures"
+]
 
 # player
 INVULNERABILITY_COOLDOWN = 600
@@ -43,6 +48,7 @@ HEALTH_OUTLINE_COL = (110,0,5)
 DEBUG_S = 8
 DEBUG_H = 30
 DEBUG_SPACING = DEBUG_S+DEBUG_H
+SLOT_SELECTED_COL = (205,130,0)
 
 # dnc
 DAY_DURATION = 10*1000*60
@@ -62,6 +68,23 @@ DROP_IDLE_SPEED, DROP_IDLE_OFFSET = 30, TILE_SIZE//6
 END_ROOM_NAME = "Portal Room"
 ENEMY_VISION_RANGE = TILE_SIZE*6
 BOSS_VISION_RANGE = TILE_SIZE*10
+
+# items
+CAN_EQUIP = [
+    "Sword",
+    "Knight Sword",
+    "Golden Sword",
+    "Mace"
+]
+CAN_CONSUME = [
+    "Healing Potion"
+]
+ITEM_STATS = {
+    "Sword":{"damage": 3,"area":False},
+    "Knight Sword":{"damage":8,"area":False},
+    "Golden Sword":{"damage":12,"area":False},
+    "Mace":{"damage":4,"area":True}
+}
 
 # generation
 FLOOR_WEIGHTS = [
@@ -155,7 +178,6 @@ BG_DARK_COL = (35-3, 29-3, 35-3)
 CYAN = (0,255,255)
 
 # decorators
-
 def internal(func): return func
 def external(func): return func
 def helper(func): return func
