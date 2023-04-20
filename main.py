@@ -4,8 +4,6 @@ from generation.dungeon import Dungeon
 from graphics.assetloader import AssetLoader
 from generation.maploader import MapLoader
 
-pygame.math.VectorIterator
-
 @singleton
 class Main:
     def __init__(self):
