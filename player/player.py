@@ -1,4 +1,4 @@
-import pygame
+import pygame, sys
 from settings import *
 from sprites.sprites import *
 from player.inventory import *
@@ -36,7 +36,7 @@ class Player(AnimatedStatus):
         self.font1 = pygame.font.Font("assets/fonts/main.ttf",30)
         self.key_data = {"q":False,"f":False}
         
-        self.give_starter_items("Silver Key",coins=30)
+        self.give_starter_items()
     
     @extend(__init__)
     def give_starter_items(self, *items,coins=0):
@@ -192,6 +192,11 @@ class Player(AnimatedStatus):
         
     def door_collisions(self, is_event):
         if self.dungeon.transition.active or self.dungeon.dialogue.active: return
+        
+        if self.current_room.end_portal:
+            if self.hitbox.colliderect(self.current_room.end_portal.rect):
+                sys.exit("YOU WON!!!")
+        
         for door in self.current_room.doors:
             if door.interaction_rect.colliderect(self.hitbox):
                 can = False
@@ -247,6 +252,13 @@ class Player(AnimatedStatus):
             if drop.hitbox.colliderect(self.hitbox) and drop.can_collect:
                 if self.inventory.can_add(drop.name): self.inventory.add_item(item_from_name(drop.name)); drop.collect()
                 else: self.drop_collect_fail(drop)
+    
+    def fireball_collisions(self):
+        for fireball in self.current_room.fireballs:
+            if self.hitbox.colliderect(fireball.hitbox):
+                self.stats.damage(fireball.player_damage)
+                fireball.kill()
+                FxEffect(self.rect.center,self.dungeon.assets["fx"]["FireBurst"],[self.current_room.visible_top,self.current_room.updates],self.current_room,1,1.5)
     
     # update
     def draw_extra(self,offset):
@@ -313,4 +325,5 @@ class Player(AnimatedStatus):
         self.coin_collisions()
         self.drop_collisions()
         self.spike_collisions()
-        self.debug.updates += 11
+        self.fireball_collisions()
+        self.debug.updates += 12

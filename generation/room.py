@@ -34,6 +34,7 @@ class Room:
         self.inv_msgs = Group()
         self.enemies = Group()
         self.heros = Group()
+        self.fireballs = Group()
         self.end_portal = None
         self.next_rooms:list[Room] = []
         
@@ -78,11 +79,14 @@ class Room:
             scaled = RoomGenerator.scale_pos(enemy_pos)
             if is_boss:
                 if "ogre" in asset_name:
-                    OgreBoss(scaled,assets[asset_name],[self.visible_objects,self.updates,self.enemies],real_name,self.name_font,self,assets["weapons"]["weapon_mace"],
-                             (assets["fx"]["MagicBarrier"],[self.visible_top,self.updates]),
-                             (assets["ui"]["emark"],[self.visible_top,self.updates]))
+                    OgreBoss(scaled,assets[asset_name],[self.visible_objects,self.updates,self.enemies],real_name,self.name_font,self,assets["weapons"]["weapon_mace"])
+                if "big_demon" in asset_name:
+                    HellblazeBoss(scaled,assets[asset_name],[self.visible_objects,self.updates,self.enemies],real_name,self.name_font,self)
             else:
                 SmallEnemy(scaled, assets[asset_name],[self.visible_objects,self.updates,self.enemies],real_name,self.name_font,self)
+        if self.data["portal"]:
+            scaled = scaled = RoomGenerator.scale_pos(self.data["portal"])
+            self.end_portal = StaticFxEffect(scaled,assets["fx"]["MediumStar"],[self.visible_top,self.updates],self,1.5)
         
         self.build_bg()
     

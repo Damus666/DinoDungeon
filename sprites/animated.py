@@ -1,4 +1,4 @@
-import pygame
+import pygame, math
 from settings import *
 from .generic import *
 
@@ -104,6 +104,7 @@ class FxEffect(Animated):
         self.loop_count = 0
         super().__init__(pos, frames, groups,room, True,speed_mul=speed_mul)
         self.draw_secondary = False
+        self.finished = False
     
     @override
     def animate(self,dt):
@@ -113,6 +114,7 @@ class FxEffect(Animated):
                 self.frame_index = 0; self.loop_count += 1
             else:
                 self.frame_index = 0
+                self.finished = True
                 self.kill()
                 return
         self.image = self.frames[int(self.frame_index)]
@@ -121,3 +123,26 @@ class FxEffect(Animated):
 class StaticFxEffect(Animated):
     def __init__(self, pos, frames, groups, room,speed_mul=1):
         super().__init__(pos, frames, groups, room,True,speed_mul=speed_mul)
+
+class Fireball(StaticFxEffect):
+    def __init__(self, pos, frames, groups, room, direction, damage=2, speed_mul=1):
+        super().__init__(pos,frames,groups,room,1)
+        
+        self.direction = direction
+        self.speed = 500*speed_mul
+        self.player_damage = damage
+        self.hitbox_size = self.frames[0].get_height()//4
+        self.hitbox = pygame.Rect((0,0),(self.hitbox_size,self.hitbox_size))
+        angle = math.degrees(math.atan2(-self.direction.y,self.direction.x))
+        self.frames = [pygame.transform.rotate(frame, angle) for frame in frames]
+        self.pos = vector(self.rect.center)
+        self.born_time = pygame.time.get_ticks()
+        self.lifetime = 8000
+        
+    def update(self, dt):
+        self.animate(dt)
+        self.pos += self.direction*self.speed*dt
+        self.rect.center = (round(self.pos.x),round(self.pos.y))
+        self.hitbox.center = self.rect.center
+        if pygame.time.get_ticks()-self.born_time >= self.lifetime:self.kill()
+        

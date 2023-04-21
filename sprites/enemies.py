@@ -1,5 +1,5 @@
 from sprites.super import Character
-from sprites.animated import FxEffect
+from sprites.animated import FxEffect, Fireball
 from sprites.static import WarningMsg
 from settings import *
 from support import *
@@ -16,7 +16,6 @@ class Enemy(Character):
         self.health = self.max_health
         self.font = font
         self.attack_mode = 0
-        self.player = self.room.player
         self.cramming_rect = self.rect
         
         self.last_damage = 0
@@ -81,6 +80,7 @@ class EnemyAttacker(Enemy):
             self.rect.centery = round(self.pos.y)
             self.hitbox.midbottom = self.rect.midbottom
             self.collisions("vertical")
+            
         elif self.direction.x != 0 or self.direction.y != 0: self.direction = vector()
 
     @runtime
@@ -113,7 +113,7 @@ class EnemyAttacker(Enemy):
         self.animate(dt)
         self.chase(dt)
         self.extra_update(dt)
-        self.debug.updates += 4
+        self.debug.updates += 3
     @runtime
     def extra_update(self, dt):pass
     
@@ -154,9 +154,12 @@ class SmallEnemy(EnemyAttacker):
 class Boss(EnemyAttacker):
     def __init__(self, pos, animations, groups, name, font, room):
         super().__init__(pos,animations,groups,name,font,room,BOSS_VISION_RANGE)
+        self.assets = self.room.dungeon.assets
+        
+    def warn(self): WarningMsg(self.rect.midtop+vector(0,0),self.assets["ui"]["emark"],[self.room.visible_top,self.room.updates],self.room)
         
 class OgreBoss(Boss):
-    def __init__(self, pos, animations, groups, name, font, room, weapon_surf, death_fx_data, e_mark_data):
+    def __init__(self, pos, animations, groups, name, font, room, weapon_surf):
         super().__init__(pos, animations, groups, name, font, room)
         self.weapon_ori_s = pygame.transform.scale_by(weapon_surf,0.75)
         self.weapon_offset_r,self.weapon_offset_l = vector(TILE_SIZE//2.5,TILE_SIZE//1.8),vector(-TILE_SIZE//2.5,TILE_SIZE//1.8)
@@ -170,8 +173,6 @@ class OgreBoss(Boss):
         self.attack_hitbox = self.rect.inflate(-TILE_SIZE//2,-TILE_SIZE)
         self.notice_hitbox = self.rect.inflate(TILE_SIZE,-TILE_SIZE*1.5)
         
-        self.death_fx_data = death_fx_data; self.e_mark_data = e_mark_data
-        
     def draw_extra(self, screen, offset):
         if pygame.time.get_ticks() - self.last_damage <= self.hit_cooldown:
             mask = pygame.mask.from_surface(self.image)
@@ -184,7 +185,7 @@ class OgreBoss(Boss):
         
     def die(self):
         super().die()
-        FxEffect(self.rect.center,self.death_fx_data[0],self.death_fx_data[1],self.room,1,1)
+        FxEffect(self.rect.center,self.assets["fx"]["MagicBarrier"],[self.room.visible_top,self.room.updates],self.room,1,1)
     
     def start_attack(self):
         self.can_chase,self.should_damage = False,True
@@ -192,7 +193,7 @@ class OgreBoss(Boss):
         self.weapon_angle,self.swing_speed = self.swing_start_angle,self.swing_start_speed
         self.next_angle = self.swing_end_angle_r if self.orientation == "right" else self.swing_end_angle_l
         self.swing_dir = 1 if self.orientation == "left" else -1
-        WarningMsg(self.rect.midtop+vector(0,0),self.e_mark_data[0],self.e_mark_data[1],self.room)
+        self.warn()
         
     def attack(self):
         if self.attack_hitbox.colliderect(self.player.rect): self.player.stats.damage(self.player_damage)
@@ -224,4 +225,92 @@ class OgreBoss(Boss):
             if self.should_damage:
                 if pygame.time.get_ticks()-self.last_attack >= self.wait_cooldown: self.attack()
         else: self.weapon_angle = self.weapon_angle_r if self.orientation == "right" else self.weapon_angle_l
+
+class HellblazeBoss(Boss):
+    def __init__(self, pos, animations, groups, name, font, room):
+        super().__init__(pos,animations,groups,name,font,room)
         
+        self.mouth_hitbox = self.rect.inflate(-TILE_SIZE//2,-TILE_SIZE//2)
+        self.mouth_damage = 1
+        self.poison_damage = 4
+        self.damage_dealt = 0
+        self.max_mouth_damage = 2
+        
+        self.change_mode_time = 0
+        self.poison_wait_cooldown = 500
+        self.poison_spawn_time = 0
+        self.poison_effect = None
+        self.last_fireball = 0
+        self.fireball_count = 0
+        self.fireball_cooldown = 500
+        self.small_fireball_count = 8
+        self.health/=4
+        
+    def standard_attack(self):
+        before = self.player.stats.health
+        self.player.stats.damage(self.mouth_damage)
+        if self.player.stats.health != before: self.damage_dealt += self.mouth_damage
+        
+    def poison_attack(self):
+        self.poison_effect = FxEffect(self.rect.center,self.assets["fx"]["PoisonClaw"],[self.room.visible_objects,self.room.updates],self.room,1,1.2)
+        self.poison_spawn_time = pygame.time.get_ticks()
+        
+    def start_fireball_attack(self):
+        self.last_fireball = pygame.time.get_ticks()
+        self.fireball_count = 0
+        
+    def change_from_standard(self):
+        self.damage_dealt,self.can_chase,self.change_mode_time,self.attack_mode = 0,False,pygame.time.get_ticks(),choice([1,2])
+        if self.attack_mode == 1: self.warn()
+        if self.attack_mode == 2: self.warn(); self.start_fireball_attack()
+        
+    def spawn_fireball(self, size):
+        sprites = choice([self.assets["fx"]["FireBall"],self.assets["fx"]["FireBall_3"]]) if size == "small" else self.assets["fx"]["FireBall_2"]
+        damage,speed_mul = (2,1) if size == "small" else (5,1.5)
+        dir = self.player.pos-self.pos
+        if dir.magnitude() != 0: dir.normalize_ip()
+        Fireball(self.rect.center,sprites,
+                 [self.room.visible_objects,self.room.updates,self.room.fireballs],self.room,
+                 dir,damage,speed_mul)
+        self.fireball_count += 1
+        self.last_fireball = pygame.time.get_ticks()
+        
+    def die(self):
+        super().die()
+        FxEffect(self.rect.center,self.assets["fx"]["FireCast"],[self.room.visible_top,self.room.updates],self.room,1,1.5)
+        FxEffect(self.rect.center,self.assets["fx"]["FireBurst"],[self.room.visible_top,self.room.updates],self.room,1,1.5)
+        
+    def extra_update(self, dt):
+        self.mouth_hitbox.center = self.rect.center
+        if self.mouth_hitbox.colliderect(self.player.hitbox): self.standard_attack()
+        if self.attack_mode == 0:
+            self.can_chase = True
+            if self.damage_dealt >= self.max_mouth_damage: self.change_from_standard()
+        if not self.can_chase:
+            diff = self.player.pos.x-self.pos.x
+            if diff >= 0: self.orientation = "right"
+            else: self.orientation = "left"
+        if self.attack_mode == 1:
+            if pygame.time.get_ticks()-self.change_mode_time >= self.poison_wait_cooldown and self.poison_spawn_time == 0: self.poison_attack()
+            if self.poison_effect and not self.poison_effect.finished:
+                if self.poison_effect.rect.colliderect(self.player.hitbox): self.player.stats.damage(self.poison_damage)
+            else:
+                if self.poison_spawn_time != 0: self.poison_spawn_time, self.attack_mode,self.poison_effect = 0,0,None
+        elif self.attack_mode == 2:
+            if pygame.time.get_ticks()-self.last_fireball >= self.fireball_cooldown:
+                if self.fireball_count < self.small_fireball_count-1:
+                    self.spawn_fireball("small")
+                else:
+                    self.spawn_fireball("big")
+                    self.attack_mode = 0
+                
+    def draw_extra(self, screen, offset):
+        if pygame.time.get_ticks() - self.last_damage <= self.hit_cooldown:
+            mask = pygame.mask.from_surface(self.image)
+            surf = mask.to_surface(setcolor="red")
+            surf.set_colorkey("black")
+            surf.set_alpha(150)
+            offsetted_s = self.rect.copy()
+            offsetted_s.center -= offset
+            screen.blit(surf,offsetted_s)
+            self.debug.blits += 1

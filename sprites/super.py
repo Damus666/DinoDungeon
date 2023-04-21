@@ -80,10 +80,9 @@ class Crate(Generic):
         self.smoke_groups = smoke_groups
         self.coin_data = coin_data
         self.drop_groups = drop_groups
-        self.coin_amount = randint(20,30)
+        self.coin_amount = randint(20,40)
         self.items = []
-        if "items" in self.crate_data:
-            self.items = parse_items_string(self.crate_data)
+        if "items" in self.crate_data: self.items = parse_items_string(self.crate_data)
         
     @external
     def interact(self):
@@ -91,11 +90,11 @@ class Crate(Generic):
         if "coins" in self.crate_data:
             for i in range(self.coin_amount):
                 vel = vector(randint(-80,80),randint(50,80))
-                coin = Coin(self.rect.center,vel,self.coin_data[0],self.coin_data[1],self.coin_data[2],self.coin_data[3],self.room)
+                Coin(self.rect.center,vel,self.coin_data[0],self.coin_data[1],self.coin_data[2],self.coin_data[3],self.room)
         elif "items" in self.crate_data:
             for item in self.items:
                 vel = vector(randint(-80,80),randint(50,80))
-                drop = Drop(self.rect.center,vel,Inventory.i.get_item_surf_only(item),item,self.drop_groups,self.coin_data[1],self.coin_data[3],self.room)
+                Drop(self.rect.center,vel,Inventory.i.get_item_surf_only(item),item,self.drop_groups,self.coin_data[1],self.coin_data[3],self.room)
             
         self.kill()
 
