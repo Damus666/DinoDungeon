@@ -34,6 +34,7 @@ class Dungeon:
         # init
         self.map_script = maps.DungeonFeatures
         self.debug.loaded_sprites = count_pngs("assets")
+        self.player.finish()
         
         # dungeon
         self.reset()
@@ -47,24 +48,18 @@ class Dungeon:
     
     @external
     def mid_transition(self):
-        self.current_room = self.next_room
-        self.current_room.enter()
-        self.player.change_room(self.current_room)
-        self.player.teleport()
+        self.current_room = self.next_room; self.current_room.enter()
+        self.player.change_room(self.current_room); self.player.teleport()
     
     def reset(self):
-        self.current_room:Room = None
-        self.next_room: Room = None
-        self.rooms:list[Room] = []
-        self.player.next_teleport_loc = (0,0); self.player.teleport()
+        self.current_room:Room= None; self.next_room: Room = None; self.rooms:list[Room] = []
+        self.start()
     
     def build_map(self):
         self.corridor = Room(self, self.map_loader.corridor_pos,self.map_loader.corridor_data)
-        for i,r_pos in enumerate(self.map_loader.rooms):
-            room = Room(self,r_pos,self.map_loader.room_data[i]); self.rooms.append(room)
+        for i,r_pos in enumerate(self.map_loader.rooms): room = Room(self,r_pos,self.map_loader.room_data[i]); self.rooms.append(room)
         self.current_room = self.rooms[self.map_loader.player_room_index]
-        self.player.change_room(self.current_room)
-        self.player.cell_room = self.current_room
+        self.player.change_room(self.current_room); self.player.cell_room = self.current_room
         self.build_connections()
     
     @extend(build_map) 
@@ -78,9 +73,7 @@ class Dungeon:
             door1.door_connected = door2; door2.door_connected = door1
     
     @once
-    def start(self):
-        self.player.next_teleport_loc = (0,0)
-        self.player.teleport()
+    def start(self): self.player.next_teleport_loc = (0,0); self.player.teleport()
     
     @runtime
     def event_loop(self):
@@ -98,7 +91,7 @@ class Dungeon:
         # update
         self.event_loop()
         self.debug.update(dt)
-        self.dnc.update(dt)
+        ### self.dnc.update(dt)
         self.current_room.update(dt)
         self.transition.update(dt)
         self.dialogue.update(dt)
@@ -112,4 +105,5 @@ class Dungeon:
         self.ui.draw()
         self.dialogue.draw()
         self.transition.draw()
+        ### self.dnc.draw()
         self.debug.draw()

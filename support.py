@@ -1,12 +1,14 @@
-import pygame, time
+import pygame, time, math
 from settings import *
 from os import walk
 from os.path import join
 from random import randint, choice
 from player.inventory import Item
+from graphics.spritesheet import *
 
 @helper
 
+# classes
 class HealthBar:
     def __init__(self, rect, fill_color, corner_w, has_outline=False, outline_col=None):
         if not has_outline:
@@ -29,7 +31,7 @@ class HealthBar:
         if self.fill_rect.original.w != w:
             self.fill_rect.original.w = w
             self.fill_rect.refresh()
-        if w >= self.corner_w*2:
+        if w >= self.corner_w:
             self.fill_rect.draw()
 
 class CornerRect:
@@ -91,56 +93,10 @@ class Timeit:
         self.end_time = time.perf_counter()
         print(f"{self.name} elapsed: {self.end_time-self.start_time}")
         return self
-            
-def count_pngs(path):
-    count = 0
-    for f_name, sub_f, files in walk(path):
-        for sub_n in sub_f:
-            count += count_pngs(path+"/"+sub_n)
-        for f in files:
-            if f.endswith("png"):
-                count += 1
-    return count            
 
-def list_remove_cond(iterable, condition):
-    toremove = []
-    for el in iterable:
-        if condition(el): toremove.append(el)
-    for e in toremove: iterable.remove(e)
-
-def item_from_name(name): return Item({"name":name})
-
-def import_folder(path,convert_alpha = True, scale_factor=True):
-    images = []
-    for _, _, image_names in walk("assets/graphics/"+path):
-        for image_name in image_names:
-            full_path = join(path,image_name)
-            full_path = "assets/graphics/"+full_path
-            image = pygame.image.load(full_path).convert_alpha() if convert_alpha else pygame.image.load(full_path).convert()
-            if scale_factor: image = pygame.transform.scale(image,(int(image.get_width()*SCALE_FACTOR),int(image.get_height()*SCALE_FACTOR)))
-            images.append(image)
-    return images
-
-def import_folder_dict(path,convert_alpha = True, scale_factor=True):
-    images = {}
-    for _, _, image_names in walk("assets/graphics/"+path):
-        for image_name in image_names:
-            full_path = join(path,image_name)
-            full_path = "assets/graphics/"+full_path
-            image = pygame.image.load(full_path).convert_alpha() if convert_alpha else pygame.image.load(full_path).convert()
-            if scale_factor: image = pygame.transform.scale(image,(int(image.get_width()*SCALE_FACTOR),int(image.get_height()*SCALE_FACTOR)))
-            images[image_name.split(".")[0]] = image
-    return images
-
-def load(path,convert_alpha = True,scale_factor=True):
-    image = pygame.image.load("assets/graphics/"+path+".png").convert_alpha() if convert_alpha else pygame.image.load("assets/graphics/"+path+".png").convert()
-    if scale_factor: image = pygame.transform.scale(image,(int(image.get_width()*SCALE_FACTOR),int(image.get_height()*SCALE_FACTOR)))
-    return image
-
-def load_scale(path,scale_factor,convert_alpha = True):
-    image = pygame.image.load("assets/graphics/"+path+".png").convert_alpha() if convert_alpha else pygame.image.load("assets/graphics/"+path+".png").convert()
-    image = pygame.transform.scale(image,(int(image.get_width()*scale_factor),int(image.get_height()*scale_factor)))
-    return image
+# math
+def angle_to_vec(angle):
+    return vector(math.cos(math.radians(angle)),-math.sin(math.radians(angle)))
 
 def weighted_choice(sequence,weights):
     weightssum = sum(weights)
@@ -159,24 +115,79 @@ def weighted_choice_combined(sequence_and_weights):
     for w in weights:
         if inside_range(chosen,cweight,cweight+w): return sequence[i]
         cweight += w; i += 1
+        
+def lerp(start, end, t): return start * (1 - t) + end * t
             
 def inside_range(number:float|int,rangeStart:float|int,rangeEnd:float|int)->bool:
     return number >= min(rangeStart,rangeEnd) and number <= max(rangeStart,rangeEnd)
 
+# generic 
+def count_pngs(path):
+    count = 0
+    for f_name, sub_f, files in walk(path):
+        for sub_n in sub_f:
+            count += count_pngs(path+"/"+sub_n)
+        for f in files:
+            if f.endswith("png"):
+                count += 1
+    return count            
+
+def list_remove_cond(iterable, condition):
+    toremove = [el for el in iterable if condition(el)]
+    for e in toremove: iterable.remove(e)
+
+# str
+def item_from_name(name): return Item({"name":name})
+def parse_items_string(string:str): return string.replace("items:","").split(",")
+
+# images
+def import_folder(path,convert_alpha = True, scale_factor=True):
+    images = []
+    for _, _, image_names in walk("assets/graphics/"+path):
+        for image_name in image_names:
+            full_path = "assets/graphics/"+join(path,image_name)
+            image = pygame.image.load(full_path).convert_alpha() if convert_alpha else pygame.image.load(full_path).convert()
+            if scale_factor: image = pygame.transform.scale_by(image,SCALE_FACTOR)
+            images.append(image)
+    return images
+
+def import_folder_dict(path,convert_alpha = True, scale_factor=True):
+    images = {}
+    for _, _, image_names in walk("assets/graphics/"+path):
+        for image_name in image_names:
+            full_path = "assets/graphics/"+join(path,image_name)
+            image = pygame.image.load(full_path).convert_alpha() if convert_alpha else pygame.image.load(full_path).convert()
+            if scale_factor: image = pygame.transform.scale_by(image,SCALE_FACTOR)
+            images[image_name.split(".")[0]] = image
+    return images
+
 def import_dict_fx(path, scale=2):
-    images = import_folder_dict(path,True,False)
-    final_images = {}
-    for name, image in images.items():
-        splitted = name.split("_")
-        real_name = splitted[0:-1]
-        real_str = "_".join(real_name)
-        final_images[real_str] = pygame.transform.scale(image, (int(image.get_width()*scale),int(image.get_height()*scale)))
-    return final_images
+    return {"_".join(name.split("_")[0:-1]):pygame.transform.scale_by(image, scale) for name, image in import_folder_dict(path,True,False).items()}
 
-def lerp(start, end, t): return start * (1 - t) + end * t
+def load(path,convert_alpha = True,scale_factor=True):
+    image = pygame.image.load("assets/graphics/"+path+".png").convert_alpha() if convert_alpha else pygame.image.load("assets/graphics/"+path+".png").convert()
+    if scale_factor: return pygame.transform.scale_by(image,SCALE_FACTOR)
+    return image
 
-def parse_items_string(string:str):
-    string = string.replace("items:","")
-    string = string.split(",")
-    return string
+def load_scale(path,scale_factor,convert_alpha = True):
+    return pygame.transform.scale_by(pygame.image.load("assets/graphics/"+path+".png").convert_alpha() if convert_alpha \
+        else pygame.image.load("assets/graphics/"+path+".png").convert() ,scale_factor)
+    
+def parse_item_sprites(assets):
+    sprites = {}
+    for name, img in assets.items():
+        w,h = img.get_size()
+        if w > h:
+            ratio = w/UI_INNER_SLOT_SIZE
+            image = pygame.transform.scale(img,(int(UI_INNER_SLOT_SIZE),int(h/ratio)))
+            sprites[name] = (image,image.get_rect())
+        else:
+            ratio = h/UI_INNER_SLOT_SIZE
+            image = pygame.transform.scale(img,(int(w/ratio),int(UI_INNER_SLOT_SIZE)))
+            sprites[name] = (image,image.get_rect())
+    return sprites
+
+# sheets
+def load_sheet(path, size, convert_alpha=False,scale=1): return Spritesheet(load(path,convert_alpha,False),size).frames(scale)
+def parse_sheets(sheet_dict): return {name:SingleSpritesheet(sheet).frames() for name, sheet in sheet_dict.items()}
         

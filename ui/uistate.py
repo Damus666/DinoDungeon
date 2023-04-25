@@ -2,15 +2,13 @@ import pygame, math
 from settings import *
 from support import *
 from sprites.sprites import FloatingUI
-from support import HealthBar
 
 class UIState:
     def __init__(self, debug):
         self.display_surface = pygame.display.get_surface()
         self.debug = debug
     
-    def draw(self):
-        pass
+    def draw(self): pass
     
 class UIDNC(UIState):
     def __init__(self, assets, day_night, debug):
@@ -221,7 +219,7 @@ class UIInventory(UIState):
                 r.center = slot_r.center
                 self.display_surface.blit(surf,r)
                 if slot_r.original.collidepoint(pos):
-                    txt = f"{slot.item.name},  Drop [Q]"
+                    txt = f"{slot.item.name}  |  Drop [Q]"
                     name_surf = self.item_font.render(txt,False,"white")
                     name_rect = name_surf.get_rect(midtop=(slot_r.center[0],self.bg_rect.bottom+UI_SLOT_SPACING))
                     pygame.draw.rect(self.display_surface,UI_BG_COL,name_rect.inflate(10,0),0,4)
@@ -297,8 +295,7 @@ class UIBoss(UIState):
             self.display_surface.blit(self.name_surf,self.name_rect)
             self.debug.blits += 8
             if self.should_disappear:
-                if pygame.time.get_ticks()-self.defeat_time >= self.disappear_time:
-                    self.end_fr()
+                if pygame.time.get_ticks()-self.defeat_time >= self.disappear_time: self.end_fr()
 
 class UIWeapon(UIState):
     def __init__(self, player):
@@ -306,34 +303,66 @@ class UIWeapon(UIState):
         self.player = player
         self.inventory = self.player.inventory
         self.weapon_original_s = None
-        self.weapon_surf = None
-        self.weapon_rect = None
+        self.weapon_surf, self.weapon_rect = None, None
         self.center = vector(H_WIDTH,H_HEIGHT)
         o = TILE_SIZE//4
-        self.offset_r = vector(o,TILE_SIZE//2)
-        self.offset_l = vector(-o,TILE_SIZE//2)
+        self.offset_r, self.offset_l = vector(o,TILE_SIZE//2+TILE_SIZE//8), vector(-o,TILE_SIZE//2+TILE_SIZE//8)
         self.mul = TILE_SIZE//2
+        
+        self.attacking, self.attack_speed = False, 200
+        self.angle, self.next_angle = 0, 0
+        
+        self.font = pygame.font.Font("assets/fonts/main.ttf",50)
         
     def change_weapon(self, surf):
         self.weapon_original_s = pygame.transform.scale_by(surf,1.2)
         
-    def get_data(self):
+    def start_attack(self, speed, fov):
         mouse_pos = pygame.mouse.get_pos()
         direction = vector(mouse_pos)-self.center
         if direction.magnitude() != 0: direction.normalize_ip()
-        return self.weapon_rect,(self.offset_r if self.player.orientation == "right" else self.offset_l)+direction*self.mul
+        center = self.center+(self.offset_r if self.player.orientation == "right" else self.offset_l)+direction*self.mul
+        angle = math.degrees(math.atan2(-direction.y,direction.x))-90
+        self.weapon_surf = pygame.transform.rotate(self.weapon_original_s,angle)
+        self.weapon_rect = self.weapon_surf.get_rect(center=center)
+        self.angle = angle-fov/2
+        self.next_angle = self.angle+fov
+        self.attacking, self.attack_speed = True, speed
         
     def update(self, dt):
-        if self.inventory.weapon:
-            mouse_pos = pygame.mouse.get_pos()
-            direction = vector(mouse_pos)-self.center
-            if direction.magnitude() != 0: direction.normalize_ip()
-            center = self.center+(self.offset_r if self.player.orientation == "right" else self.offset_l)+direction*self.mul
-            angle = math.degrees(math.atan2(-direction.y,direction.x))-90
-            self.weapon_surf = pygame.transform.rotate(self.weapon_original_s,angle)
-            self.weapon_rect = self.weapon_surf.get_rect(center=center)
+        if not self.attacking: return
+        direction = angle_to_vec(self.angle+90)
+        center = self.center+(self.offset_r if self.player.orientation == "right" else self.offset_l)+direction*self.mul
+        self.weapon_surf = pygame.transform.rotate(self.weapon_original_s,self.angle)
+        self.weapon_rect = self.weapon_surf.get_rect(center=center)
+        self.angle+=self.attack_speed*dt
+        if self.angle >= self.next_angle:
+            self.attacking = False
+            self.player.finish_attack(self.weapon_rect,(self.offset_r if self.player.orientation == "right" else self.offset_l)+direction*self.mul)
         
     def draw(self):
-        if self.inventory.weapon:
+        if self.attacking:
             self.display_surface.blit(self.weapon_surf,self.weapon_rect)
             self.debug.blits += 1
+
+class UIEnergy(UIState):
+    def __init__(self, player, assets):
+        super().__init__(player.debug)
+        
+        self.stats = player.stats
+        self.bg_rect = pygame.Rect(0,0,360,35)
+        self.bg_rect.topright = (WIDTH,0)
+        rect = self.bg_rect.inflate(-20,-25)
+        self.zap_img = assets["zap"]
+        self.zap_rect = self.zap_img.get_rect(center=rect.midright)
+        self.energy_bar = HealthBar(rect,ENERGY_COL,S_CORNER_W,True,ENERGY_OUTLINE_COL)
+        self.zap_radius = self.zap_img.get_width()
+        
+    def draw(self):
+        pygame.draw.rect(self.display_surface,UI_BG_COL,self.bg_rect)
+        self.energy_bar.draw(self.stats.energy,self.stats.max_energy)
+        pygame.draw.polygon(self.display_surface,UI_BG_COL,(self.bg_rect.topleft,self.bg_rect.bottomleft,(self.bg_rect.left-10,self.bg_rect.top)))
+        pygame.draw.circle(self.display_surface,UI_BG_COL,self.zap_rect.center,self.zap_radius)
+        self.display_surface.blit(self.zap_img,self.zap_rect)
+        self.debug.blits += 5
+        

@@ -163,5 +163,4 @@ cython_debug/
 # custom
 TODO.txt
 .VSCodeCounter/
-z.sl
-z.py
+z.*

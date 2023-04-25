@@ -92,8 +92,7 @@ class Debug:
     
     @runtime
     def event(self, event):
-        if event.type == pygame.KEYDOWN and event.key == pygame.K_F3:
-            self.active = not self.active
+        if event.type == pygame.KEYDOWN and event.key == pygame.K_F3: self.active = not self.active
     
     @runtime
     def draw(self):
@@ -102,6 +101,5 @@ class Debug:
             pygame.draw.rect(self.display_surface,UI_BG_COL,self.bg_rect)
             pygame.draw.polygon(self.display_surface,UI_BG_COL,(self.bg_rect.topleft,self.bg_rect.topright,(self.bg_rect.left,self.bg_rect.top-20)))
             pygame.draw.polygon(self.display_surface,UI_BG_COL,(self.bg_rect.bottomleft,self.bg_rect.bottomright,(self.bg_rect.left,self.bg_rect.bottom+20)))
-            for surf, rect in self.blit_data:
-                self.display_surface.blit(surf,rect)
+            for surf, rect in self.blit_data: self.display_surface.blit(surf,rect)
             

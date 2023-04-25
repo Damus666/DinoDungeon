@@ -1,7 +1,10 @@
 from pygame.math import Vector2 as vector
+import pygame
+
+pygame.init()
 
 # window
-WINDOW_SIZES = WIDTH, HEIGHT = 1920, 1080
+WINDOW_SIZES = WIDTH, HEIGHT = pygame.display.get_desktop_sizes()[0]
 H_WIDTH, H_HEIGHT = WIDTH//2, HEIGHT // 2
 FPS = 0 # unlimited
 
@@ -12,6 +15,7 @@ SCALE_FACTOR = TILE_SIZE/ORIGINAL_TILE_SIZE
 ANIMATION_SPEED = 8
 TRANSITION_SPEED = 10
 TRANSITION_THRESHOLD = 30
+ONE_OVER_1000 = 1/1000
 
 # maps
 MAP_NAMES = [
@@ -20,7 +24,14 @@ MAP_NAMES = [
 
 # player
 INVULNERABILITY_COOLDOWN = 600
+HEAL_COOLDOWN = 3800
 P_SPEED = 400
+P_SHIFT_SPEED = 600
+SHIFT_COST = 20
+ENERGY_INCREASE = 4
+DASH_SPEED = 1500
+DASH_COST = 20
+DASH_COOLDOWN = 100
 ADD_FAIL_MESSAGES = {
     "space": "Inventory is full",
     "has": "Already has item",
@@ -31,27 +42,36 @@ ADD_FAIL_MESSAGES = {
 UI_HEART_SIZE = 45
 BOSS_HEART_SIZE = 60
 UI_SPACING = 8
-UI_BG_COL = (20, 20, 20)
 UI_SLOT_SIZE = 60
 UI_INNER_SLOT_SIZE = 52
-UI_SLOT_BG_COL = (30, 30, 30)
 H_SLOT_SIZE = UI_SLOT_SIZE//2
 UI_SLOT_SPACING = 5
 UI_CORNER_W = 6
 UI_COIN_SPEED = 10
 MSG_DISAPPEAR_SPEED = 200
-UI_DIALOGUE_BTN_COL = (35, 35, 35)
 DIALOGUE_BTN_H = 40
 DIALOGUE_OFFSET = 8
-HEALTH_BAR_COL = (180,0,45)
-HEALTH_OUTLINE_COL = (110,0,5)
 DEBUG_S = 8
 DEBUG_H = 30
 DEBUG_SPACING = DEBUG_S+DEBUG_H
+S_CORNER_W = 4
+
+# colors
+BG_COL = (35, 29, 35)  # (20,20,20)
+TRANSITION_COL = (20, 20, 20)
+BG_DARK_COL = (35-3, 29-3, 35-3)
+CYAN = (0,255,255)
+ENERGY_COL = (250,155,0)
+ENERGY_OUTLINE_COL = (190,90,0)
 SLOT_SELECTED_COL = (205,130,0)
+HEALTH_BAR_COL = (180,0,45)
+HEALTH_OUTLINE_COL = (110,0,5)
+UI_DIALOGUE_BTN_COL = (35, 35, 35)
+UI_SLOT_BG_COL = (30, 30, 30)
+UI_BG_COL = (20, 20, 20)
 
 # dnc
-DAY_DURATION = 10*1000*60
+DAY_DURATION = 2*1000*60
 CYCLE_TRANSITION_SPEED = 10
 
 # secondary room
@@ -62,7 +82,7 @@ ONE_OVER_TILESIZE = 1/TILE_SIZE
 
 # dungeon
 SPIKE_ACTIVATION_DIST = TILE_SIZE*5
-SPIKE_DAMAGE = 1
+SPIKE_DAMAGE = 2
 DROP_SCALE = 0.7
 DROP_IDLE_SPEED, DROP_IDLE_OFFSET = 30, TILE_SIZE//6
 END_ROOM_NAME = "Portal Room"
@@ -80,10 +100,10 @@ CAN_CONSUME = [
     "Healing Potion"
 ]
 ITEM_STATS = {
-    "Sword":{"damage": 3,"area":False},
-    "Knight Sword":{"damage":8,"area":False},
-    "Golden Sword":{"damage":12,"area":False},
-    "Mace":{"damage":4,"area":True}
+    "Sword":{"damage": 3,"area":False,"speed":350,"fov":60},
+    "Knight Sword":{"damage":8,"area":False,"speed":300,"fov":60},
+    "Golden Sword":{"damage":12,"area":False,"speed":350,"fov":60},
+    "Mace":{"damage":4,"area":True,"speed":300,"fov":80}
 }
 
 # generation
@@ -169,13 +189,6 @@ BOSS_NAMES = [
     "big_zombie",
     "ogre"
 ]
-
-
-# colors
-BG_COL = (35, 29, 35)  # (20,20,20)
-TRANSITION_COL = (20, 20, 20)
-BG_DARK_COL = (35-3, 29-3, 35-3)
-CYAN = (0,255,255)
 
 # decorators
 def internal(func): return func

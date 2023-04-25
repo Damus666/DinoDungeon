@@ -1,6 +1,6 @@
 from sprites.super import Character
 from sprites.animated import FxEffect, Fireball
-from sprites.static import WarningMsg
+from sprites.static import WarningMsg, Disappearing, DisappearFaded
 from settings import *
 from support import *
 from pygame.math import Vector2 as vector
@@ -25,8 +25,7 @@ class Enemy(Character):
     def damage(self, amount):
         if pygame.time.get_ticks() - self.last_damage >= self.hit_cooldown:
             self.health -= amount
-            if self.health <= 0:
-                self.die()
+            if self.health <= 0: self.die()
             self.last_damage = pygame.time.get_ticks()
 
     def die(self):
@@ -38,7 +37,7 @@ class Enemy(Character):
     
     @runtime
     def draw_name(self, screen, offset): pass
-    def draw_extra(self,screen,offset): pass
+    def draw_extra(self, screen,offset): pass
 
     @override
     def update(self, dt):
@@ -57,10 +56,8 @@ class EnemyAttacker(Enemy):
         self.hitbox.h = TILE_SIZE//4
         self.can_chase = self.behaviour=="attack"
         self.original_animations = self.animations
-        self.flipped_animations = {
-            key: [pygame.transform.flip(sprite,True,False) for sprite in value]
-            for key, value in self.animations.items()
-        }
+        self.flipped_animations = { key: [pygame.transform.flip(sprite,True,False) for sprite in value]
+                                    for key, value in self.animations.items() }
     
     @runtime
     def chase(self,dt):
@@ -141,14 +138,12 @@ class SmallEnemy(EnemyAttacker):
         for enemy in self.other_enemies:
             if self.cramming_rect.colliderect(enemy.cramming_rect):
                 direction = enemy.pos-self.pos
-                #if direction.magnitude() != 0: direction.normalize_ip()
-                #direction *= self.size
                 self.pos += -vector(direction.x/20,direction.y/20)
         
     def extra_update(self, dt):
         self.cramming_rect.center = self.rect.center
         self.other_collisions()
-        if self.cramming_rect.colliderect(self.player.hitbox):
+        if self.cramming_rect.colliderect(self.player.hitbox) and self.player.can_damage():
             self.player.stats.damage(self.player_damage)
 
 class Boss(EnemyAttacker):
@@ -164,20 +159,23 @@ class OgreBoss(Boss):
         self.weapon_ori_s = pygame.transform.scale_by(weapon_surf,0.75)
         self.weapon_offset_r,self.weapon_offset_l = vector(TILE_SIZE//2.5,TILE_SIZE//1.8),vector(-TILE_SIZE//2.5,TILE_SIZE//1.8)
         self.weapon_offset_ru,self.weapon_offset_lu = self.weapon_offset_r+vector(0,-SCALE_FACTOR),self.weapon_offset_l+vector(0,-SCALE_FACTOR)
-        self.weapon_angle_r,self.weapon_angle_l,self.swing_start_angle,self.swing_end_angle_r,self.swing_end_angle_l = -45,45,0,-90,90
-        self.swing_start_speed,self.swing_speed,self.swing_dir,self.swing_acceleration,self.next_angle,self.weapon_angle=10,0,1,1,0,0
+        self.weapon_angle_r,self.weapon_angle_l = -45,45
+        self.swing_start_angle,self.swing_end_angle_r,self.swing_end_angle_l = 0,-90-45,90+45
+        self.swing_start_speed,self.swing_speed,self.swing_dir,self.swing_acceleration = 8,0,1,2
+        self.next_angle,self.weapon_angle=0,0
         self.weapon_surf = self.weapon_ori_s; self.weapon_rect = self.weapon_surf.get_rect()
         
         self.last_attack,self.attack_cooldown = 0,2000
         self.player_damage,self.should_damage,self.wait_cooldown = 2,False,400
-        self.attack_hitbox = self.rect.inflate(-TILE_SIZE//2,-TILE_SIZE)
-        self.notice_hitbox = self.rect.inflate(TILE_SIZE,-TILE_SIZE*1.5)
+        self.crack1_damage,self.crack2_damage = 2,8
+        self.attack_hitbox,self.notice_hitbox= self.rect.inflate(-TILE_SIZE//2,-TILE_SIZE),self.rect.inflate(TILE_SIZE,-TILE_SIZE*1.5)
+        self.crack1_cooldown,self.crack2_cooldown = 3500,8000
+        self.weapon_striked = False
         
     def draw_extra(self, screen, offset):
         if pygame.time.get_ticks() - self.last_damage <= self.hit_cooldown:
             mask = pygame.mask.from_surface(self.image)
-            surf = mask.to_surface(setcolor="red")
-            surf.set_colorkey("black"); surf.set_alpha(150)
+            surf = mask.to_surface(setcolor="red"); surf.set_colorkey("black"); surf.set_alpha(150)
             offsetted_s = self.rect.copy(); offsetted_s.center -= offset
             screen.blit(surf,offsetted_s); self.debug.blits += 1
         offsetted = self.weapon_rect.copy(); offsetted.center -= offset
@@ -188,6 +186,7 @@ class OgreBoss(Boss):
         FxEffect(self.rect.center,self.assets["fx"]["MagicBarrier"],[self.room.visible_top,self.room.updates],self.room,1,1)
     
     def start_attack(self):
+        self.weapon_striked = False
         self.can_chase,self.should_damage = False,True
         self.last_attack = pygame.time.get_ticks()
         self.weapon_angle,self.swing_speed = self.swing_start_angle,self.swing_start_speed
@@ -196,8 +195,14 @@ class OgreBoss(Boss):
         self.warn()
         
     def attack(self):
-        if self.attack_hitbox.colliderect(self.player.rect): self.player.stats.damage(self.player_damage)
+        if self.attack_hitbox.colliderect(self.player.rect) and self.player.can_damage(): self.player.stats.damage(self.player_damage)
         self.should_damage = False
+        
+    def spawn_crack(self,pos,damage,cooldown,idx=0):
+        if not self.weapon_striked:
+            img = pygame.transform.rotate(self.assets["cracks"][idx],randint(0,360))
+            Disappearing(pos,img,[self.room.visible_floor,self.room.updates,self.room.damages],self.room,cooldown,None,True,True,damage)
+            self.weapon_striked = True
     
     def extra_update(self, dt):
         # weapon
@@ -205,8 +210,13 @@ class OgreBoss(Boss):
         is_u = int(self.frame_index)%2 == 0
         offset = (self.weapon_offset_ru if is_u else self.weapon_offset_r) if self.orientation == "right" else (self.weapon_offset_lu if is_u else self.weapon_offset_l)
         pos = self.rect.center + offset
-        if self.orientation == "right": self.weapon_rect = self.weapon_surf.get_rect(bottomleft=pos)
-        else: self.weapon_rect = self.weapon_surf.get_rect(bottomright=pos)
+        
+        if self.orientation == "right":
+            key = "bottomleft" if self.weapon_angle > -90 else "midleft"
+            self.weapon_rect = self.weapon_surf.get_rect(**{key:pos})
+        else:
+            key = "bottomright" if self.weapon_angle < 90 else "midright"
+            self.weapon_rect = self.weapon_surf.get_rect(**{key:pos})
         
         # movement, attack
         self.notice_hitbox.center = self.rect.center
@@ -219,9 +229,13 @@ class OgreBoss(Boss):
                 self.swing_speed += self.swing_acceleration
                 self.weapon_angle += self.swing_speed*self.swing_dir*dt
                 if self.swing_dir == 1:
-                    if self.weapon_angle > self.swing_end_angle_l: self.weapon_angle = self.swing_end_angle_l
+                    if self.weapon_angle > self.swing_end_angle_l:
+                        self.weapon_angle = self.swing_end_angle_l
+                        self.spawn_crack(self.weapon_rect.bottomleft,self.crack1_damage,self.crack1_cooldown)
                 else:
-                    if self.weapon_angle < self.swing_end_angle_r: self.weapon_angle = self.swing_end_angle_r
+                    if self.weapon_angle < self.swing_end_angle_r:
+                        self.weapon_angle = self.swing_end_angle_r
+                        self.spawn_crack(self.weapon_rect.bottomright,self.crack1_damage,self.crack1_cooldown)
             if self.should_damage:
                 if pygame.time.get_ticks()-self.last_attack >= self.wait_cooldown: self.attack()
         else: self.weapon_angle = self.weapon_angle_r if self.orientation == "right" else self.weapon_angle_l
@@ -231,25 +245,28 @@ class HellblazeBoss(Boss):
         super().__init__(pos,animations,groups,name,font,room)
         
         self.mouth_hitbox = self.rect.inflate(-TILE_SIZE//2,-TILE_SIZE//2)
-        self.mouth_damage = 1
-        self.poison_damage = 4
-        self.damage_dealt = 0
-        self.max_mouth_damage = 2
+        self.mouth_damage, self.max_mouth_damage = 1.2
+        self.poison_damage, self.damage_dealt = 4, 0
         
         self.change_mode_time = 0
-        self.poison_wait_cooldown = 500
-        self.poison_spawn_time = 0
-        self.poison_effect = None
-        self.last_fireball = 0
-        self.fireball_count = 0
-        self.fireball_cooldown = 500
-        self.small_fireball_count = 8
-        self.health/=4
+        self.poison_wait_cooldown, self.poison_spawn_time, self.poison_effect = 500,0,None
+        self.last_fireball, self.fireball_cooldown = 0, 400
+        self.fireball_count, self.small_fireball_count = 0, 8
+        
+        self.lava_cooldown, self.lava_fade_speed = 3000, 200
+        self.lava_amount_range, self.lava_damage = (8,15), 2
         
     def standard_attack(self):
         before = self.player.stats.health
         self.player.stats.damage(self.mouth_damage)
         if self.player.stats.health != before: self.damage_dealt += self.mouth_damage
+        
+    def spawn_lava(self):
+        amount = randint(self.lava_amount_range[0],self.lava_amount_range[1])
+        for _ in range(amount):
+            pos = choice(self.room.visible_floor.sprites()).rect.topleft
+            surf = choice(self.assets["lava"])
+            DisappearFaded(pos,surf,[self.room.visible_floor,self.room.updates,self.room.damages],self.room,self.lava_cooldown,None,self.lava_fade_speed,False,True,self.lava_damage)
         
     def poison_attack(self):
         self.poison_effect = FxEffect(self.rect.center,self.assets["fx"]["PoisonClaw"],[self.room.visible_objects,self.room.updates],self.room,1,1.2)
@@ -258,10 +275,11 @@ class HellblazeBoss(Boss):
     def start_fireball_attack(self):
         self.last_fireball = pygame.time.get_ticks()
         self.fireball_count = 0
+        self.spawn_lava()
         
     def change_from_standard(self):
         self.damage_dealt,self.can_chase,self.change_mode_time,self.attack_mode = 0,False,pygame.time.get_ticks(),choice([1,2])
-        if self.attack_mode == 1: self.warn()
+        if self.attack_mode == 1: self.warn(); self.spawn_lava()
         if self.attack_mode == 2: self.warn(); self.start_fireball_attack()
         
     def spawn_fireball(self, size):
@@ -282,7 +300,7 @@ class HellblazeBoss(Boss):
         
     def extra_update(self, dt):
         self.mouth_hitbox.center = self.rect.center
-        if self.mouth_hitbox.colliderect(self.player.hitbox): self.standard_attack()
+        if self.mouth_hitbox.colliderect(self.player.hitbox) and self.player.can_damage(): self.standard_attack()
         if self.attack_mode == 0:
             self.can_chase = True
             if self.damage_dealt >= self.max_mouth_damage: self.change_from_standard()
@@ -293,7 +311,7 @@ class HellblazeBoss(Boss):
         if self.attack_mode == 1:
             if pygame.time.get_ticks()-self.change_mode_time >= self.poison_wait_cooldown and self.poison_spawn_time == 0: self.poison_attack()
             if self.poison_effect and not self.poison_effect.finished:
-                if self.poison_effect.rect.colliderect(self.player.hitbox): self.player.stats.damage(self.poison_damage)
+                if self.poison_effect.rect.colliderect(self.player.hitbox) and self.player.can_damage: self.player.stats.damage(self.poison_damage)
             else:
                 if self.poison_spawn_time != 0: self.poison_spawn_time, self.attack_mode,self.poison_effect = 0,0,None
         elif self.attack_mode == 2:
@@ -307,10 +325,7 @@ class HellblazeBoss(Boss):
     def draw_extra(self, screen, offset):
         if pygame.time.get_ticks() - self.last_damage <= self.hit_cooldown:
             mask = pygame.mask.from_surface(self.image)
-            surf = mask.to_surface(setcolor="red")
-            surf.set_colorkey("black")
-            surf.set_alpha(150)
-            offsetted_s = self.rect.copy()
-            offsetted_s.center -= offset
+            surf = mask.to_surface(setcolor="red"); surf.set_colorkey("black"); surf.set_alpha(150)
+            offsetted_s = self.rect.copy(); offsetted_s.center -= offset
             screen.blit(surf,offsetted_s)
             self.debug.blits += 1

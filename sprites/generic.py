@@ -55,5 +55,4 @@ class AnimatedStatus(Animated):
     
     @external
     def set_status(self,status,force=False):
-        if self.status != status or force:
-            self.status = status; self.frames = self.animations[self.status]
+        if self.status != status or force: self.status = status; self.frames = self.animations[self.status]

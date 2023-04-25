@@ -125,14 +125,42 @@ class FloatingUI(pygame.sprite.Sprite):
         self.rect.center = (round(self.pos.x),round(self.pos.y))
         if self.rect.colliderect(self.end_rect) or self.rect.right < 0 or self.rect.top < 0: self.kill(); self.debug.loaded_entities -= 1
         self.debug.updates += 1
-
-class WarningMsg(Generic):
-    def __init__(self, pos, surf, groups, room):
-        super().__init__(pos,surf,groups,room,True,False)
+            
+class Disappearing(Generic):
+    def __init__(self, pos, surf, groups, room,cooldown, disappear_callback,pos_center=False, draw_secondary=True, player_damage=0):
+        super().__init__(pos,surf,groups,room,pos_center,draw_secondary,player_damage)
         self.born_time = pygame.time.get_ticks()
-        self.cooldown = 1000
-    
-    @override
+        self.cooldown = cooldown
+        self.disappear_callback = disappear_callback
+        
     def update(self, dt):
         if pygame.time.get_ticks()-self.born_time >= self.cooldown:
             self.kill()
+            if self.disappear_callback: self.disappear_callback()
+            
+class DisappearFaded(Disappearing):
+    def __init__(self,pos, surf, groups, room, cooldown, disappear_callback, fade_speed, pos_center=False, draw_secondary=True, player_damage=0, start_full=False):
+        super().__init__(pos,surf,groups,room,cooldown,disappear_callback,pos_center,draw_secondary,player_damage)
+        self.fade_speed = fade_speed
+        self.alpha = 0 if not start_full else 255
+        self.direction = 1
+        
+    def update(self, dt):
+        if self.alpha < 255 and self.direction == 1:
+            self.alpha += self.fade_speed*dt
+            if self.alpha >= 255:
+                self.alpha = 255
+                self.born_time = pygame.time.get_ticks()
+                self.direction = -1
+        else:
+            if pygame.time.get_ticks()-self.born_time>= self.cooldown:
+                self.alpha -= self.fade_speed*dt
+                if self.alpha <= 0:
+                    self.alpha = 0
+                    if self.disappear_callback: self.disappear_callback()
+                    self.kill()
+        self.image.set_alpha(self.alpha)
+        
+class WarningMsg(DisappearFaded):
+    def __init__(self, pos, surf, groups, room):
+        super().__init__(pos,surf,groups,room,900,None,120,True,False,0,True)

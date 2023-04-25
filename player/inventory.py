@@ -1,5 +1,6 @@
 import pygame
 from settings import *
+from support import *
 
 @singleton
 class Inventory:
@@ -7,7 +8,7 @@ class Inventory:
     def __init__(self, assets):
         Inventory.i = self
         self.display_surface = pygame.display.get_surface()
-        self.assets = self.parse_item_sprites(assets["items"])
+        self.assets = parse_item_sprites(assets["items"])
         
         self.slots:list[Slot] = []
         for _ in range(5): self.slots.append(Slot())
@@ -17,28 +18,10 @@ class Inventory:
         
         self.weapon = None
         
-    def consume_item(self, item):
-        self.remove_item(item.name)
+    def consume_item(self, item): self.remove_item(item.name)
         
-    def parse_item_sprites(self, assets):
-        sprites = {}
-        for name, img in assets.items():
-            w,h = img.get_size()
-            if w > h:
-                ratio = w/UI_INNER_SLOT_SIZE
-                image = pygame.transform.scale(img,(int(UI_INNER_SLOT_SIZE),int(h/ratio)))
-                sprites[name] = (image,image.get_rect())
-            else:
-                ratio = h/UI_INNER_SLOT_SIZE
-                image = pygame.transform.scale(img,(int(w/ratio),int(UI_INNER_SLOT_SIZE)))
-                sprites[name] = (image,image.get_rect())
-        return sprites
-        
-    def get_item_surf(self, name):
-        return self.assets[name]
-    
-    def get_item_surf_only(self, name):
-        return self.assets[name][0]
+    def get_item_surf(self, name): return self.assets[name]
+    def get_item_surf_only(self, name): return self.assets[name][0]
         
     def add_coins(self,amount, starting=False):
         self.coins += amount
@@ -51,8 +34,7 @@ class Inventory:
     
     def buy(self, price):
         if self.can_buy(price):
-            self.coins -= price
-            self.ui_changed = True
+            self.coins -= price; self.ui_changed = True
         
     def empty(self):
         for slot in self.slots: slot.empty()
@@ -89,16 +71,13 @@ class Inventory:
     def remove_item(self, name):
         if self.can_remove(name):
             for slot in self.slots:
-                if slot.compare(name): 
-                    slot.empty()
-                    self.shift()
+                if slot.compare(name): slot.empty(); self.shift()
     
     @internal
     def shift(self):
         items = []
         for slot in self.slots:
-            if not slot.is_empty():
-                items.append(slot.item)
+            if not slot.is_empty(): items.append(slot.item)
             slot.empty()
         for i, item in enumerate(items): self.slots[i].set(item)
     
@@ -108,11 +87,13 @@ class Stats:
         self.max_health = 14
         self.health = self.max_health
         
-        self.max_actions = 5
-        self.actions = self.max_actions
+        self.base_energy = 100
+        self.max_energy = self.base_energy
+        self.energy = self.max_energy
         
         self.alive = True
         self.last_damage = pygame.time.get_ticks()-INVULNERABILITY_COOLDOWN
+        self.last_heal = pygame.time.get_ticks()-HEAL_COOLDOWN
         
     def consume_item(self, item):
         if item.name == "Healing Potion":
@@ -121,19 +102,13 @@ class Stats:
             return True,None
         return False, "[ERR] Could not consume item"
     
-    # action
-    def reset_actions(self): self.actions = self.max_actions
-    def can_act(self): return self.actions > 0
-    
-    def give_action(self):
-        if self.actions < self.max_actions: self.actions += 1
-        
-    def consume_action(self):
-        if self.actions > 0: self.actions -= 1
+    # energy
+    def consume_energy(self, amount):
+        self.energy -= amount
+        if self.energy <= 0: self.energy = 0
         
     @property
-    def can_damage(self):
-        return pygame.time.get_ticks() -self.last_damage >= INVULNERABILITY_COOLDOWN
+    def can_damage(self): return pygame.time.get_ticks() -self.last_damage >= INVULNERABILITY_COOLDOWN
     
     # health
     def damage(self,amount):
@@ -143,7 +118,7 @@ class Stats:
             self.last_damage = pygame.time.get_ticks()
             
     def heal(self, amount):
-        self.health += int(amount)
+        self.health += int(amount); self.last_heal = pygame.time.get_ticks()
         if self.health > self.max_health: self.health = self.max_health
         
 

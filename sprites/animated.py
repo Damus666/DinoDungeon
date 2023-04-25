@@ -7,7 +7,7 @@ class Coin(Animated):
         super().__init__(pos, frames, groups, room,True,False)
         self.particle_frames = particle_frames
         self.particle_groups = particle_groups
-        self.hitbox.inflate_ip(TILE_SIZE//1.5,TILE_SIZE//1.5)
+        self.hitbox.inflate_ip(TILE_SIZE,TILE_SIZE)
         self.pos = self.rect.center
         self.vel = vector(vel)
         self.dir = 1 if self.vel.x > 0 else -1
@@ -18,7 +18,7 @@ class Coin(Animated):
     
     @external
     def collect(self):
-        particle = FxEffect(self.rect.center,self.particle_frames,self.particle_groups,self.room,1,0.8)
+        FxEffect(self.rect.center,self.particle_frames,self.particle_groups,self.room,1,0.8)
         self.kill()
     
     @runtime
@@ -100,26 +100,27 @@ class Fountain(Animated):
             
 class FxEffect(Animated):
     def __init__(self, pos, frames, groups,room, loops=1, speed_mul=1):
-        self.loops = loops
-        self.loop_count = 0
+        self.loops, self.loop_count = loops, 0
         super().__init__(pos, frames, groups,room, True,speed_mul=speed_mul)
-        self.draw_secondary = False
-        self.finished = False
+        self.draw_secondary, self.finished = False, False
     
     @override
     def animate(self,dt):
         self.frame_index += self.animation_speed*dt
         if self.frame_index >= len(self.frames):
-            if self.loop_count < self.loops-1 or self.loops == -1:
-                self.frame_index = 0; self.loop_count += 1
+            if self.loop_count < self.loops-1 or self.loops == -1: self.frame_index = 0; self.loop_count += 1
             else:
-                self.frame_index = 0
-                self.finished = True
+                self.frame_index, self.finished = 0, True
                 self.kill()
                 return
         self.image = self.frames[int(self.frame_index)]
         self.rect = self.image.get_rect(center=self.rect.center)
-        
+
+class FlippedFx(FxEffect):
+    def __init__(self, pos, frames, groups, room, flip = True,loops=1, speed_mul = 1):
+        super().__init__(pos,frames,groups,room,loops,speed_mul)
+        if flip: self.frames = [pygame.transform.flip(frame,True,False) for frame in self.frames]
+   
 class StaticFxEffect(Animated):
     def __init__(self, pos, frames, groups, room,speed_mul=1):
         super().__init__(pos, frames, groups, room,True,speed_mul=speed_mul)

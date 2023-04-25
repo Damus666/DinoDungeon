@@ -8,12 +8,13 @@ class UI:
         
         self.states:dict[str,UIState] = {
             #UIOverlay(assets),
-            "dnc":UIDNC(assets,day_night,player.debug),
+            #"dnc":UIDNC(assets,day_night,player.debug),
             "health":UIHealth(assets,player.stats,player.debug),
             "coins":UICoins(player.inventory,coin_img,player.debug),
             "inventory":UIInventory(player.inventory,player),
             "boss":UIBoss(player.debug),
-            "weapon":UIWeapon(player)
+            "weapon":UIWeapon(player),
+            "energy":UIEnergy(player,assets),
         }
         self.state_values = self.states.values()
         

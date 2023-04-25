@@ -8,6 +8,7 @@ from .generator import RoomGenerator
 
 class Room:
     def __init__(self,dungeon,positions,data):
+        # setup
         self.display_surface = pygame.display.get_surface()
         self.dungeon = dungeon
         self.debug = self.dungeon.debug
@@ -17,13 +18,14 @@ class Room:
         self.offset = pygame.Vector2(0,0)
         self.name = self.data["name"]
         self.boss_ui = self.dungeon.ui.states["boss"]
-        
+        self.name_font = pygame.font.Font("assets/fonts/main.ttf",25)
+        # visibles
         self.visible_bg = CameraGroup(self.player)
         self.visible_floor = CameraGroup(self.player)
         self.visible_walls = CameraGroup(self.player)
         self.visible_objects = CameraGroup(self.player)
         self.visible_top = CameraGroup(self.player)
-        
+        # groups
         self.updates = Group()
         self.coins = Group()
         self.doors = Group()
@@ -33,12 +35,12 @@ class Room:
         self.drops = Group()
         self.inv_msgs = Group()
         self.enemies = Group()
+        self.damages = Group()
         self.heros = Group()
         self.fireballs = Group()
         self.end_portal = None
         self.next_rooms:list[Room] = []
-        
-        self.name_font = pygame.font.Font("assets/fonts/main.ttf",25)
+        # init
         self.build()
     
     @extend(__init__)
@@ -85,7 +87,7 @@ class Room:
             else:
                 SmallEnemy(scaled, assets[asset_name],[self.visible_objects,self.updates,self.enemies],real_name,self.name_font,self)
         if self.data["portal"]:
-            scaled = scaled = RoomGenerator.scale_pos(self.data["portal"])
+            scaled = RoomGenerator.scale_pos(self.data["portal"])
             self.end_portal = StaticFxEffect(scaled,assets["fx"]["MediumStar"],[self.visible_top,self.updates],self,1.5)
         
         self.build_bg()
@@ -117,9 +119,8 @@ class Room:
             for wall in self.visible_walls:
                 if wall.hitbox.colliderect(door.interaction_rect) and wall is not door:
                     wall.kill()
-                    if wall.hitbox.colliderect(door.hitbox):
-                        \
-        floor = Generic(wall.rect.topleft,self.dungeon.assets["floor"][0],[self.visible_floor,self.collidable],self)
+                    if wall.hitbox.colliderect(door.hitbox):\
+                    floor = Generic(wall.rect.topleft,self.dungeon.assets["floor"][0],[self.visible_floor,self.collidable],self)
         return door
     
     def drop_item(self, item, pos):
@@ -128,18 +129,14 @@ class Room:
     
     def defeated(self, enemy):
         if "lock_room" in enemy.special_actions:
-            for door in self.doors:
-                door.unlock()
-        if "boss_ui" in enemy.special_actions:
-            self.boss_ui.end()
+            for door in self.doors: door.unlock()
+        if "boss_ui" in enemy.special_actions: self.boss_ui.end()
     
     def enter(self):
         for enemy in self.enemies:
             if "lock_room" in enemy.special_actions:
-                for door in self.doors:
-                    door.lock()
-            if "boss_ui" in enemy.special_actions:
-                self.boss_ui.start(enemy)
+                for door in self.doors: door.lock()
+            if "boss_ui" in enemy.special_actions: self.boss_ui.start(enemy)
     
     @runtime
     def update(self, dt):
@@ -148,8 +145,7 @@ class Room:
         self.updates.update(dt)
     
     @external
-    def secondary_check(self, door):
-        return self.player.pos.distance_to(door.center) <= SECONDARY_DOOR_DIST
+    def secondary_check(self, door): return self.player.pos.distance_to(door.center) <= SECONDARY_DOOR_DIST
     
     @runtime
     def draw_bg(self):
@@ -192,9 +188,7 @@ class CameraGroup(pygame.sprite.Group):
                 offset_rect = sprite.rect.copy()
                 offset_rect.center -= offset
                 if secondary:
-                    mul = dst/SECONDARY_DIST
                     sprite.alpha_image.set_alpha(int((SECONDARY_DIST - dst) / SECONDARY_DIST * 255))
                     self.display_surface.blit(sprite.alpha_image,offset_rect)
-                else:
-                    self.display_surface.blit(sprite.image,offset_rect)
+                else: self.display_surface.blit(sprite.image,offset_rect)
                 self.debug.rendering += 1
