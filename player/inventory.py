@@ -1,6 +1,6 @@
 import pygame
 from settings import *
-from support import *
+import support
 
 @singleton
 class Inventory:
@@ -8,17 +8,23 @@ class Inventory:
     def __init__(self, assets):
         Inventory.i = self
         self.display_surface = pygame.display.get_surface()
-        self.assets = parse_item_sprites(assets["items"])
+        self.assets = support.parse_sprites_ratio(assets["items"])
         
         self.slots:list[Slot] = []
         for _ in range(5): self.slots.append(Slot())
             
         self.coins = 0
-        self.ui_changed = False 
+        self.ui_changed = False
         
         self.weapon = None
+        self.effects = {}
         
-    def consume_item(self, item): self.remove_item(item.name)
+    def consume_item(self, item):
+        self.remove_item(item.name)
+        if item.name in POTIONS: self.add_effect(item.name)
+            
+    def add_effect(self,name): self.effects[name] = {"start":pygame.time.get_ticks(),"duration":POTION_DATA[name]["duration"]}
+    def effect_active(self, name): return name in self.effects.keys()
         
     def get_item_surf(self, name): return self.assets[name]
     def get_item_surf_only(self, name): return self.assets[name][0]
@@ -41,17 +47,19 @@ class Inventory:
             
     def has_item(self,name):
         for slot in self.slots:
-            if slot.compare(name): return True
+            if slot.compare(name) and not slot.is_empty(): return True
         return False
+    
     def count_item(self, name):
         amount = 0
         for slot in self.slots:
-            if slot.compare(name): amount += 1
+            if slot.compare(name): amount += slot.amount
         return amount
     
     def can_add(self,name):
         for slot in self.slots:
             if slot.is_empty(): return not self.has_item(name)
+            if slot.compare(name) and name in STACKABLE: return slot.amount < ITEM_STACKS[name]
         return False
     
     def add_fail_reason(self, name):
@@ -64,22 +72,29 @@ class Inventory:
         if self.can_add(item.name):
             for slot in self.slots:
                 if slot.is_empty():
-                    slot.set(item)
+                    slot.set(item,1)
                     if not starting: self.add_floating_item(item.name)
                     return
+                elif slot.compare(item.name) and item.name in STACKABLE:
+                    if slot.amount < ITEM_STACKS[item.name]:
+                        slot.amount += 1
+                        if not starting: self.add_floating_item(item.name)
     
     def remove_item(self, name):
         if self.can_remove(name):
             for slot in self.slots:
-                if slot.compare(name): slot.empty(); self.shift()
+                if slot.compare(name):
+                    if slot.amount > 1: slot.amount -= 1
+                    else: slot.empty()
+                    self.shift()
     
     @internal
     def shift(self):
-        items = []
+        items = {}
         for slot in self.slots:
-            if not slot.is_empty(): items.append(slot.item)
+            if not slot.is_empty(): items[slot.item] = slot.amount
             slot.empty()
-        for i, item in enumerate(items): self.slots[i].set(item)
+        for i, (item, amount) in enumerate(items.items()): self.slots[i].set(item,amount)
     
 @singleton   
 class Stats:
@@ -87,8 +102,7 @@ class Stats:
         self.max_health = 14
         self.health = self.max_health
         
-        self.base_energy = 100
-        self.max_energy = self.base_energy
+        self.max_energy = 100
         self.energy = self.max_energy
         
         self.alive = True
@@ -100,6 +114,7 @@ class Stats:
             if self.health < self.max_health: self.health = self.max_health
             else: return False, "No need to heal"
             return True,None
+        elif item.name in POTIONS: return True,None
         return False, "[ERR] Could not consume item"
     
     # energy
@@ -125,14 +140,15 @@ class Stats:
 class Slot:
     def __init__(self):
         self.item = None
+        self.amount = 0
     
     def compare(self, name):
         if not self.is_empty(): return self.item.name == name
         return False
     
-    def empty(self): self.item = None
-    def is_empty(self): return self.item == None
-    def set(self, item): self.item = item
+    def empty(self): self.item = None; self.amount = 0
+    def is_empty(self): return self.item == None or self.amount == 0
+    def set(self, item, amount): self.item = item; self.amount = amount
         
 class Item:
     def __init__(self,data):

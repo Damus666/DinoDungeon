@@ -245,7 +245,7 @@ class HellblazeBoss(Boss):
         super().__init__(pos,animations,groups,name,font,room)
         
         self.mouth_hitbox = self.rect.inflate(-TILE_SIZE//2,-TILE_SIZE//2)
-        self.mouth_damage, self.max_mouth_damage = 1.2
+        self.mouth_damage, self.max_mouth_damage = 1,2
         self.poison_damage, self.damage_dealt = 4, 0
         
         self.change_mode_time = 0
@@ -266,7 +266,8 @@ class HellblazeBoss(Boss):
         for _ in range(amount):
             pos = choice(self.room.visible_floor.sprites()).rect.topleft
             surf = choice(self.assets["lava"])
-            DisappearFaded(pos,surf,[self.room.visible_floor,self.room.updates,self.room.damages],self.room,self.lava_cooldown,None,self.lava_fade_speed,False,True,self.lava_damage)
+            lava = DisappearFaded(pos,surf,[self.room.visible_floor,self.room.updates,self.room.damages],self.room,self.lava_cooldown,None,self.lava_fade_speed,False,True,self.lava_damage)
+            lava.name = "lava"
         
     def poison_attack(self):
         self.poison_effect = FxEffect(self.rect.center,self.assets["fx"]["PoisonClaw"],[self.room.visible_objects,self.room.updates],self.room,1,1.2)
@@ -311,7 +312,8 @@ class HellblazeBoss(Boss):
         if self.attack_mode == 1:
             if pygame.time.get_ticks()-self.change_mode_time >= self.poison_wait_cooldown and self.poison_spawn_time == 0: self.poison_attack()
             if self.poison_effect and not self.poison_effect.finished:
-                if self.poison_effect.rect.colliderect(self.player.hitbox) and self.player.can_damage: self.player.stats.damage(self.poison_damage)
+                if self.poison_effect.rect.colliderect(self.player.hitbox) and self.player.can_damage()\
+                    and not self.player.inventory.effect_active("Poison Resistance"): self.player.stats.damage(self.poison_damage)
             else:
                 if self.poison_spawn_time != 0: self.poison_spawn_time, self.attack_mode,self.poison_effect = 0,0,None
         elif self.attack_mode == 2:

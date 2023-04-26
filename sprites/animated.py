@@ -3,10 +3,12 @@ from settings import *
 from .generic import *
 
 class Coin(Animated):
-    def __init__(self, pos, vel, frames, particle_frames, groups, particle_groups, room):
+    def __init__(self, pos, vel, frames, particle_frames, groups, particle_groups, room, amount=1):
         super().__init__(pos, frames, groups, room,True,False)
         self.particle_frames = particle_frames
         self.particle_groups = particle_groups
+        self.amount = amount
+        if self.amount > 1: self.frames = [pygame.transform.scale_by(frame,1.8) for frame in self.frames]
         self.hitbox.inflate_ip(TILE_SIZE,TILE_SIZE)
         self.pos = self.rect.center
         self.vel = vector(vel)

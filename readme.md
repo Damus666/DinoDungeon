@@ -1,3 +1,3 @@
-# Dungeon Escape (Temporary Name)
+# Dino Dungeon
 
-Source code for a game i am developing. The name is temporary
+Source code for a game work in progress made using python and pygame

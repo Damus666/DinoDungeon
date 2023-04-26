@@ -149,16 +149,18 @@ def import_folder(path,convert_alpha = True, scale_factor=True):
             image = pygame.image.load(full_path).convert_alpha() if convert_alpha else pygame.image.load(full_path).convert()
             if scale_factor: image = pygame.transform.scale_by(image,SCALE_FACTOR)
             images.append(image)
+        break
     return images
 
 def import_folder_dict(path,convert_alpha = True, scale_factor=True):
     images = {}
-    for _, _, image_names in walk("assets/graphics/"+path):
+    for _, sub_f, image_names in walk("assets/graphics/"+path):
         for image_name in image_names:
             full_path = "assets/graphics/"+join(path,image_name)
             image = pygame.image.load(full_path).convert_alpha() if convert_alpha else pygame.image.load(full_path).convert()
             if scale_factor: image = pygame.transform.scale_by(image,SCALE_FACTOR)
             images[image_name.split(".")[0]] = image
+        break
     return images
 
 def import_dict_fx(path, scale=2):
@@ -173,19 +175,21 @@ def load_scale(path,scale_factor,convert_alpha = True):
     return pygame.transform.scale_by(pygame.image.load("assets/graphics/"+path+".png").convert_alpha() if convert_alpha \
         else pygame.image.load("assets/graphics/"+path+".png").convert() ,scale_factor)
     
-def parse_item_sprites(assets):
+def parse_sprites_ratio(assets, size=UI_INNER_SLOT_SIZE):
     sprites = {}
     for name, img in assets.items():
         w,h = img.get_size()
         if w > h:
-            ratio = w/UI_INNER_SLOT_SIZE
-            image = pygame.transform.scale(img,(int(UI_INNER_SLOT_SIZE),int(h/ratio)))
+            ratio = w/size
+            image = pygame.transform.scale(img,(int(size),int(h/ratio)))
             sprites[name] = (image,image.get_rect())
         else:
-            ratio = h/UI_INNER_SLOT_SIZE
-            image = pygame.transform.scale(img,(int(w/ratio),int(UI_INNER_SLOT_SIZE)))
+            ratio = h/size
+            image = pygame.transform.scale(img,(int(w/ratio),int(size)))
             sprites[name] = (image,image.get_rect())
     return sprites
+
+def only_sprites_from_tuple(sprites): return {name:sprite for name, (sprite,_) in sprites.items()}
 
 # sheets
 def load_sheet(path, size, convert_alpha=False,scale=1): return Spritesheet(load(path,convert_alpha,False),size).frames(scale)

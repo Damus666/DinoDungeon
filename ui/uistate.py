@@ -234,6 +234,12 @@ class UIInventory(UIState):
                         self.display_surface.blit(surf,rect)
                         if self.player.key_data["f"]: self.item_interact(slot.item)
                         self.debug.blits += 2
+                if slot.amount > 1:
+                    amount_surf = self.item_font.render(str(slot.amount),False,"white")
+                    amount_rect = amount_surf.get_rect(center=slot_r.original.midbottom)
+                    pygame.draw.circle(self.display_surface,UI_BG_COL,amount_rect.center,amount_surf.get_height()//2.45)
+                    self.display_surface.blit(amount_surf,amount_rect)
+                    self.debug.blits += 1
                 self.debug.blits += 1
         # items
         self.floating_items.draw(self.display_surface)
@@ -365,4 +371,31 @@ class UIEnergy(UIState):
         pygame.draw.circle(self.display_surface,UI_BG_COL,self.zap_rect.center,self.zap_radius)
         self.display_surface.blit(self.zap_img,self.zap_rect)
         self.debug.blits += 5
+        
+class UIEffects(UIState):
+    def __init__(self, player, assets, ui_assets):
+        super().__init__(player.debug)
+        self.assets = only_sprites_from_tuple(parse_sprites_ratio(assets,30))
+        self.clock = pygame.transform.scale_by(ui_assets["clock"],1.25); self.clock_w = self.clock.get_width()
+        self.inventory = player.inventory
+        self.font = pygame.font.Font("assets/fonts/main.ttf",30)
+        
+        self.bg_rect = pygame.Rect(0,0,120,0); self.bg_rect.topright = (WIDTH,32)
+        self.effect_h = 50
+        
+    def draw(self):
+        items = self.inventory.effects.items()
+        self.bg_rect.h = self.effect_h*len(items); h = self.bg_rect.top+10
+        pygame.draw.rect(self.display_surface,UI_BG_COL,self.bg_rect)
+        pygame.draw.polygon(self.display_surface,UI_BG_COL,(self.bg_rect.topleft,self.bg_rect.bottomleft,(self.bg_rect.left-30,self.bg_rect.top)))
+        self.debug.blits += 2
+        for name,data in items:
+            time_left = (data["duration"]-(pygame.time.get_ticks()-data["start"]))//1000
+            time_surf = self.font.render(str(time_left),True,"white"); time_rect = time_surf.get_rect(topright=(self.bg_rect.right-20-self.clock_w,h))
+            clock_rect = self.clock.get_rect(midleft=(time_rect.right+10,time_rect.centery))
+            icon_surf = self.assets[name]; icon_rect = icon_surf.get_rect(center = (self.bg_rect.left+25,time_rect.centery))
+            self.display_surface.blit(time_surf,time_rect); self.display_surface.blit(icon_surf,icon_rect)
+            self.display_surface.blit(self.clock,clock_rect)
+            self.debug.blits += 3; h += self.effect_h
+            if "Resistance" in name: pygame.draw.line(self.display_surface,RED,icon_rect.bottomleft,icon_rect.topright,3); self.debug.blits += 1
         

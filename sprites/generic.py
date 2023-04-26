@@ -2,11 +2,12 @@ import pygame
 from pygame.sprite import Sprite
 from settings import *
 from pygame.math import Vector2 as vector
-from random import randint, uniform
+from random import randint, uniform, choice
 from player.inventory import Inventory
 from support import parse_items_string
 
 class Generic(Sprite):
+    name = "generic"
     def __init__(self, pos, surf, groups, room=None, pos_center=False, draw_secondary=True, player_damage = 0):
         super().__init__(groups)
         self.draw_secondary = draw_secondary

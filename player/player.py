@@ -42,7 +42,7 @@ class Player(AnimatedStatus):
         self.font1 = pygame.font.Font("assets/fonts/main.ttf",30)
         self.key_data = {"q":False,"f":False}
         # init
-        self.give_starter_items("Orc Mask","Sword","Quartz Key","Prismarine Key","Portal Key")
+        self.give_starter_items("Poison Resistance","Fire Resistance","Energy Drink","Silver Key",coins=2000)
         self.dungeon.debug.loaded_entities += 1
         
     def finish(self): self.weapon_ui = self.dungeon.ui.states["weapon"]
@@ -201,8 +201,11 @@ class Player(AnimatedStatus):
      
     def update_stats(self,dt):
         if self.stats.energy < self.stats.max_energy: self.stats.energy += ENERGY_INCREASE*dt
+        if self.inventory.effect_active("Energy Drink"): self.stats.energy = self.stats.max_energy
         if pygame.time.get_ticks()-self.stats.last_heal>= HEAL_COOLDOWN:
             if len(self.current_room.enemies.sprites()) <= 0: self.stats.heal(1)
+        for name, value in list(self.inventory.effects.items()):
+            if pygame.time.get_ticks()-value["start"] >= value["duration"]: del self.inventory.effects[name]
      
     # collisions   
     def collisions(self, direction):
@@ -268,10 +271,11 @@ class Player(AnimatedStatus):
                 if spike.is_on: spike.is_far()
         # damage
         for sprite in self.current_room.damages:
+            if sprite.name == "lava" and self.inventory.effect_active("Fire Resistance"): continue
             if sprite.hitbox.colliderect(self.hitbox) and self.can_damage(): self.stats.damage(sprite.player_damage)
         # coin      
         for coin in self.current_room.coins:
-            if coin.hitbox.colliderect(self.hitbox) and coin.can_collect: self.inventory.add_coins(1); coin.collect()
+            if coin.hitbox.colliderect(self.hitbox) and coin.can_collect: self.inventory.add_coins(coin.amount); coin.collect()
         # drop
         for drop in self.current_room.drops:
             if drop.hitbox.colliderect(self.hitbox) and drop.can_collect:

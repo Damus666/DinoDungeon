@@ -61,6 +61,7 @@ BG_COL = (35, 29, 35)  # (20,20,20)
 TRANSITION_COL = (20, 20, 20)
 BG_DARK_COL = (35-3, 29-3, 35-3)
 CYAN = (0,255,255)
+RED = (255,0,0)
 ENERGY_COL = (250,155,0)
 ENERGY_OUTLINE_COL = (190,90,0)
 SLOT_SELECTED_COL = (205,130,0)
@@ -96,15 +97,28 @@ CAN_EQUIP = [
     "Golden Sword",
     "Mace"
 ]
+POTION_DATA = {
+    "Energy Drink":{"duration":20*1000},
+    "Poison Resistance":{"duration":60*1000},
+    "Fire Resistance":{"duration":40*1000}
+}
+POTIONS = list(POTION_DATA.keys())
 CAN_CONSUME = [
     "Healing Potion"
-]
+] + POTIONS
 ITEM_STATS = {
     "Sword":{"damage": 3,"area":False,"speed":350,"fov":60},
     "Knight Sword":{"damage":8,"area":False,"speed":300,"fov":60},
     "Golden Sword":{"damage":12,"area":False,"speed":350,"fov":60},
-    "Mace":{"damage":4,"area":True,"speed":300,"fov":80}
+    "Mace":{"damage":4,"area":True,"speed":300,"fov":80},
 }
+ITEM_STACKS = {
+    "Healing Potion":3,
+    "Energy Drink":3,
+    "Poison Resistance":2,
+    "Fire Resistance":2,
+}
+STACKABLE = list(ITEM_STACKS.keys())
 
 # generation
 FLOOR_WEIGHTS = [

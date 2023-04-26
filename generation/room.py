@@ -110,7 +110,7 @@ class Room:
         shift_up,shift_left = False, False
         if door_dir == "v" and (door_center[0],door_center[1]+1) in self.positions: shift_up = True
         if door_dir == "h" and (door_center[0]+1,door_center[1]) in self.positions: shift_left = True
-        door = Door(door_pos,self.dungeon.assets["door"],[self.visible_walls,self.doors,self.collidable],\
+        door = Door(door_pos,self.dungeon.assets["door"],[self.visible_walls,self.doors,self.collidable, self.updates],\
             door_dir,room_connected,teleport_loc,self,transition_dir,self.dungeon,shift_up,shift_left,key,self.name_font)
         self.next_rooms.append((room_connected,door))
         if door_dir == "v":

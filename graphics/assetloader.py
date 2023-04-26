@@ -26,6 +26,7 @@ class AssetLoader:
         # ui
         self.assets["ui"] = import_folder_dict("ui",True,False)
         self.assets["ui"]["emark"] = load_scale("ui/emark",SCALE_FACTOR/1.5)
+        self.assets["ui"]["effects"] = import_folder_dict("ui/effects",True,False)
         # objects
         self.assets["chest_empty"] = [load("objects/chest_empty/chest_empty"),import_folder("objects/chest_empty/animation")]
         self.assets["chest_full"] = [load("objects/chest_full/chest_full"),import_folder("objects/chest_full/animation")]

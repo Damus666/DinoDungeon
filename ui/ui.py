@@ -15,6 +15,7 @@ class UI:
             "boss":UIBoss(player.debug),
             "weapon":UIWeapon(player),
             "energy":UIEnergy(player,assets),
+            "effects":UIEffects(player,assets["effects"],assets),
         }
         self.state_values = self.states.values()
         
