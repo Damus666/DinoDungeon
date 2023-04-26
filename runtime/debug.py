@@ -1,5 +1,5 @@
-from settings import *
 import pygame
+from settings import *
 import psutil, os
 
 class Debug:

@@ -1,7 +1,11 @@
 import pygame
 from settings import *
+from support import parse_items_string
+from .generic import AnimatedStatus
 from .static import *
 from .animated import *
+from player.inventory import Inventory
+from random import randint, choice
 
 class Door(Generic):
     def __init__(self, pos, door_assets, groups, orientation, room_connected,teleport_loc, room, transition_dir,dungeon,shift_up=False, shift_left=False, key=None,font=None):

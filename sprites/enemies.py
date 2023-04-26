@@ -1,10 +1,10 @@
-from sprites.super import Character
-from sprites.animated import FxEffect, Fireball
-from sprites.static import WarningMsg, Disappearing, DisappearFaded
+import pygame
 from settings import *
 from support import *
 from pygame.math import Vector2 as vector
-import pygame
+from sprites.super import Character
+from sprites.animated import FxEffect, Fireball
+from sprites.static import WarningMsg, Disappearing, DisappearFaded
 
 class Enemy(Character):
     def __init__(self, pos, animations, groups, name, font, room):

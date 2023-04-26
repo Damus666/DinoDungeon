@@ -1,6 +1,5 @@
 import pygame
 from settings import *
-from support import *
 
 @singleton
 class Transition:
@@ -31,14 +30,14 @@ class Transition:
         self.debug.updates += 1
         if self.active:
             if self.stage == 1:
-                self.coord1 = lerp(self.coord1, self.target_coord, TRANSITION_SPEED * dt)
+                self.coord1 = pygame.math.lerp(self.coord1, self.target_coord, TRANSITION_SPEED * dt)
                 if (self.direction == 1 and self.coord1 >= self.target_coord-TRANSITION_THRESHOLD) or \
                     (self.direction == -1 and self.coord1 <= self.target_coord+TRANSITION_THRESHOLD):
                     self.coord1 = self.target_coord
                     self.stage += 1
                     self.dungeon.mid_transition()
             elif self.stage == 2:
-                self.coord2 = lerp(self.coord2, self.target_coord, TRANSITION_SPEED * dt)
+                self.coord2 = pygame.math.lerp(self.coord2, self.target_coord, TRANSITION_SPEED * dt)
                 if (self.direction == 1 and self.coord2 >= self.target_coord-TRANSITION_THRESHOLD) or \
                     (self.direction == -1 and self.coord2 <= self.target_coord+TRANSITION_THRESHOLD):
                     self.coord2 = self.target_coord

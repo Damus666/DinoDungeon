@@ -1,6 +1,6 @@
 import pygame, math
 from settings import *
-from .generic import *
+from .generic import Animated
 
 class Coin(Animated):
     def __init__(self, pos, vel, frames, particle_frames, groups, particle_groups, room, amount=1):

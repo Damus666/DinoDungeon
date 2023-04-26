@@ -1,15 +1,14 @@
 import pygame, sys
 from settings import *
+from support import count_pngs
 from ui.ui import UI
 from runtime.dnc import DNC
-from player.player import Player
-from .maploader import MapLoader
-from .room import Room, RoomGenerator
-from sprites.sprites import *
-from support import *
 from runtime.transition import Transition
 from runtime.dialogue import Dialogue
 from runtime.debug import Debug
+from player.player import Player
+from .maploader import MapLoader
+from .room import Room, RoomGenerator
 
 # maps
 import maps.DungeonFeatures
@@ -24,8 +23,7 @@ class Dungeon:
         # child
         self.debug = Debug(clock)
         self.player = Player(self.assets["lizard_f"],self)
-        self.dnc = DNC(self.debug)
-        self.ui = UI(self.assets["ui"],self.dnc,self.assets["coin"]["anim"][0],self.player)
+        self.ui = UI(self.assets["ui"],self.assets["coin"]["anim"][0],self.player)
         self.maps:dict[str,MapLoader] = map_loaders
         self.map_loader:MapLoader = map_loaders[map_name]
         self.transition = Transition(self)
@@ -91,7 +89,6 @@ class Dungeon:
         # update
         self.event_loop()
         self.debug.update(dt)
-        ### self.dnc.update(dt)
         self.current_room.update(dt)
         self.transition.update(dt)
         self.dialogue.update(dt)
@@ -105,5 +102,4 @@ class Dungeon:
         self.ui.draw()
         self.dialogue.draw()
         self.transition.draw()
-        ### self.dnc.draw()
         self.debug.draw()

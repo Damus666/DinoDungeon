@@ -1,6 +1,7 @@
 import pygame
 from settings import *
-from .generic import *
+from random import randint
+from .generic import Generic
 from .animated import FxEffect
         
 class Drop(Generic):

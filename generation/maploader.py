@@ -1,9 +1,6 @@
-import pygame
 from settings import *
 import pytilekit
 from pyloader.map import Map
-from support import *
-
 
 @singleton
 @helper

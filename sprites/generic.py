@@ -1,10 +1,8 @@
 import pygame
-from pygame.sprite import Sprite
 from settings import *
+from pygame.sprite import Sprite
 from pygame.math import Vector2 as vector
 from random import randint, uniform, choice
-from player.inventory import Inventory
-from support import parse_items_string
 
 class Generic(Sprite):
     name = "generic"

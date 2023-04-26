@@ -1,9 +1,7 @@
-import pygame, math
+import pygame
 from settings import *
 from pygame.sprite import Group
 from sprites.sprites import *
-from sprites.super import Door
-from support import *
 from .generator import RoomGenerator
 
 class Room:
@@ -192,3 +190,4 @@ class CameraGroup(pygame.sprite.Group):
                     self.display_surface.blit(sprite.alpha_image,offset_rect)
                 else: self.display_surface.blit(sprite.image,offset_rect)
                 self.debug.rendering += 1
+                

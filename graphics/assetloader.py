@@ -1,7 +1,5 @@
-import pygame
-from settings import *
 from support import *
-from graphics.spritesheet import SingleSpritesheet, Spritesheet
+from settings import *
 
 @singleton
 @helper

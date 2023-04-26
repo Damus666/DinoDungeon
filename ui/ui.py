@@ -1,13 +1,12 @@
-import pygame
 from settings import *
 from .uistate import *
 
 @singleton
 class UI:
-    def __init__(self, assets, day_night, coin_img, player):
+    def __init__(self, assets, coin_img, player):
         
         self.states:dict[str,UIState] = {
-            #UIOverlay(assets),
+            #"overlay":UIOverlay(assets),
             #"dnc":UIDNC(assets,day_night,player.debug),
             "health":UIHealth(assets,player.stats,player.debug),
             "coins":UICoins(player.inventory,coin_img,player.debug),
