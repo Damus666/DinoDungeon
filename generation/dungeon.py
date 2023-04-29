@@ -2,7 +2,6 @@ import pygame, sys
 from settings import *
 from support import count_pngs
 from ui.ui import UI
-from runtime.dnc import DNC
 from runtime.transition import Transition
 from runtime.dialogue import Dialogue
 from runtime.debug import Debug

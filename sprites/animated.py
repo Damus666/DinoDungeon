@@ -131,7 +131,7 @@ class Fireball(StaticFxEffect):
     def __init__(self, pos, frames, groups, room, direction, damage=2, speed_mul=1):
         super().__init__(pos,frames,groups,room,1)
         
-        self.direction = direction
+        self.direction = vector(direction)
         self.speed = 500*speed_mul
         self.player_damage = damage
         self.hitbox_size = self.frames[0].get_height()//4
@@ -148,4 +148,46 @@ class Fireball(StaticFxEffect):
         self.rect.center = (round(self.pos.x),round(self.pos.y))
         self.hitbox.center = self.rect.center
         if pygame.time.get_ticks()-self.born_time >= self.lifetime:self.kill()
+        
+class PowerEffect(StaticFxEffect):
+    def __init__(self, pos, frames, groups, room, direction, data):
+        super().__init__(pos, frames, groups, room, 2)
+        self.direction = vector(direction)
+        self.data = data
+        self.speed = data["speed"]
+        self.lifetime = data["lifetime"]*1000
+        self.born_time = pygame.time.get_ticks()
+        self.player_damage = data["damage"]
+        self.hit_effect = data["hit"]
+        self.piercing = data["piercing"]
+        self.force = data["force"] if data["force"]["name"] != "none" else None
+        if not "Tornado" in data["effect"] and not "Holy" in data["effect"]:
+            angle = math.degrees(math.atan2(-self.direction.y,self.direction.x))
+            self.frames = [pygame.transform.rotate(frame, angle) for frame in frames]
+        self.pos = vector(self.rect.center)
+        if "Fire" in data["effect"] or "Ice" in data["effect"]:
+            self.hitbox_size = self.frames[0].get_height()//4
+            self.hitbox = pygame.Rect((0,0),(self.hitbox_size,self.hitbox_size))
+        elif "Tornado" in data["effect"] or "Holy" in data["effect"]:
+            self.hitbox = self.rect.inflate(-TILE_SIZE,-TILE_SIZE)
+            
+    def apply_force(self, enemy):
+        if self.force:
+            if self.rect.colliderect(enemy.rect):
+                force = self.force["force"]
+                match self.force["name"]:
+                    case "attract": direction = self.pos-enemy.pos
+                    case "repell": direction = enemy.pos-self.pos
+                if direction.magnitude() != 0: direction.normalize_ip()
+                direction *= force
+                enemy.pos += direction
+                enemy.rect.center = (round(enemy.pos.x),round(enemy.pos.y))
+            
+    def update(self, dt):
+        self.animate(dt)
+        self.pos += self.direction*self.speed*dt
+        self.rect.center = (round(self.pos.x),round(self.pos.y))
+        self.hitbox.center = self.rect.center
+        if pygame.time.get_ticks()-self.born_time >= self.lifetime: self.kill()
+        
         

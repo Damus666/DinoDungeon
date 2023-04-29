@@ -36,6 +36,7 @@ class Room:
         self.damages = Group()
         self.heros = Group()
         self.fireballs = Group()
+        self.effects = Group()
         self.end_portal = None
         self.next_rooms:list[Room] = []
         # init

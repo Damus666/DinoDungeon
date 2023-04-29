@@ -164,4 +164,29 @@ class DisappearFaded(Disappearing):
         
 class WarningMsg(DisappearFaded):
     def __init__(self, pos, surf, groups, room):
-        super().__init__(pos,surf,groups,room,900,None,120,True,False,0,True)
+        super().__init__(pos,surf,groups,room,900,None,300,True,False,0,True)
+        
+class SoulMsg(DisappearFaded):
+    def __init__(self, pos, surf, groups, room):
+        super().__init__(pos,surf,groups,room,800,None,300,True,False,0,True)
+        self.speed = 50
+        self.dir, self.pos = vector(0,-1),vector(self.rect.center)
+        self.super = super()
+        
+    def update(self, dt):
+        self.pos += self.dir*self.speed*dt
+        self.rect.center = (round(self.pos.x),round(self.pos.y))
+        self.super.update(dt)
+        
+class DamageIndicator(DisappearFaded):
+    def __init__(self, pos, damage, groups, room, color, font):
+        surf = font.render(f"-{damage}",True,color)
+        super().__init__(pos, surf, groups, room, 800, None, 300, True, False, 0, True)
+        self.speed = 40
+        self.dir, self.pos = vector(0,-1),vector(self.rect.center)
+        self.super = super()
+        
+    def update(self, dt):
+        self.pos += self.dir*self.speed*dt
+        self.rect.center = (round(self.pos.x),round(self.pos.y))
+        self.super.update(dt)

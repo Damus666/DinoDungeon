@@ -99,7 +99,7 @@ class UIHealth(UIState):
     def draw(self):
         # draw bg
         pygame.draw.rect(self.display_surface,UI_BG_COL,self.hearts_bg_r)
-        pygame.draw.polygon(self.display_surface,UI_BG_COL,(self.hearts_bg_r.topright,self.hearts_bg_r.bottomright,(self.hearts_bg_r.right+50,0)))
+        pygame.draw.polygon(self.display_surface,UI_BG_COL,(self.hearts_bg_r.topright,self.hearts_bg_r.bottomright,(self.hearts_bg_r.right+40,0)))
         self.debug.blits += 2
         # empty hearts
         for i in self.range_5:
@@ -116,17 +116,19 @@ class UIHealth(UIState):
             self.debug.blits += 1
             self.display_surface.blit(self.heart_half,(self.heart_spacing+(-self.heart_spacing/2)*(last_i)+UI_HEART_SIZE*last_i,self.heart_spacing/2))
                   
-class UICoins(UIState):
-    def __init__(self, inventory, coin_img,debug, bg_bottom=60):
+class UICoinsSouls(UIState):
+    def __init__(self, inventory, coin_img,debug, soul_img, bg_bottom=60):
         super().__init__(debug)
         self.inventory = inventory
         
-        self.coins_bg_r = pygame.Rect(0,bg_bottom,120,32)
+        self.coins_bg_r = pygame.Rect(0,bg_bottom,120,35*2)
         cs = 1.5
         self.coin_img = pygame.transform.scale(coin_img,(int(coin_img.get_width()*cs),int(coin_img.get_height()*cs)))
+        self.soul_img = pygame.transform.scale_by(soul_img,2.1)
         self.coin_rect = self.coin_img.get_rect(topleft=(self.coins_bg_r.left-2,self.coins_bg_r.top-16))
+        self.soul_rect = self.soul_img.get_rect(topleft=(self.coins_bg_r.left+7,self.coins_bg_r.top-3+32))
         self.coins_font = pygame.font.Font("assets/fonts/main.ttf",40)
-        self.update_coins()
+        self.update_things()
         
         self.floating_img = pygame.transform.scale(self.coin_img,(int(self.coin_img.get_width()*0.8),int(self.coin_img.get_height()*0.8)))
         self.floating_coins = pygame.sprite.Group()
@@ -148,18 +150,23 @@ class UICoins(UIState):
         pygame.draw.rect(self.display_surface,UI_BG_COL,self.coins_bg_r)
         pygame.draw.polygon(self.display_surface,UI_BG_COL,(self.coins_bg_r.topright,self.coins_bg_r.bottomright,(self.coins_bg_r.right+30,self.coins_bg_r.top)))
         # update
-        if self.inventory.ui_changed: self.update_coins()
+        if self.inventory.ui_changed: self.update_things()
         # draw coin, count
         self.display_surface.blit(self.coin_img,self.coin_rect)
         self.display_surface.blit(self.coin_amount_surf,self.coin_amount_rect)
+        self.display_surface.blit(self.soul_img, self.soul_rect)
+        self.display_surface.blit(self.soul_amount_surf,self.soul_amount_rect)
         # floating
         self.floating_coins.draw(self.display_surface)
         self.debug.blits += 5
         
-    def update_coins(self):
+    def update_things(self):
         self.coin_amount_surf = self.coins_font.render(f"{self.inventory.coins}",True,"white")
         self.coin_amount_rect = self.coin_amount_surf.get_rect(topleft=(self.coin_rect.right+3,0))
         self.coin_amount_rect.centery = self.coin_rect.centery+4
+        self.soul_amount_surf = self.coins_font.render(f"{self.inventory.souls}",True,CYAN)
+        self.soul_amount_rect = self.soul_amount_surf.get_rect(topleft=(self.soul_rect.right+9,0))
+        self.soul_amount_rect.centery = self.soul_rect.centery
         self.inventory.ui_changed = False
         
 class UIInventory(UIState):
@@ -184,6 +191,13 @@ class UIInventory(UIState):
             
         rects = sorted(rects,key=lambda r: r.centerx)
         self.slot_rects = [CornerRect(rect,UI_CORNER_W,UI_SLOT_BG_COL) for rect in rects]
+        self.slot_numhints = []
+        smallerfont = pygame.font.Font("assets/fonts/main.ttf",20)
+        for i,slot_r in enumerate(self.slot_rects):
+            hsurf = smallerfont.render(str(i+1),True,"white")
+            hrect = hsurf.get_rect(center=(slot_r.original.left+5,slot_r.original.top+5))
+            hrad = hsurf.get_height()//2.7
+            self.slot_numhints.append((hsurf,hrect,hrad))
         self.selected_slot_rects = [CornerRect(rect,UI_CORNER_W,SLOT_SELECTED_COL) for rect in rects]
         
         self.item_font = pygame.font.Font("assets/fonts/main.ttf",30)
@@ -213,6 +227,7 @@ class UIInventory(UIState):
         # slots
         for i,slot_r in enumerate(self.slot_rects):
             slot = self.inventory.slots[i]
+            numhint = self.slot_numhints[i]
             slot_r.draw(self.debug) if (slot.item is None or slot.item.name != self.inventory.weapon) else self.selected_slot_rects[i].draw(self.debug)
             if not slot.is_empty():
                 surf,r = self.inventory.get_item_surf(slot.item.name)
@@ -222,11 +237,12 @@ class UIInventory(UIState):
                     txt = f"{slot.item.name}  |  Drop [Q]"
                     name_surf = self.item_font.render(txt,False,"white")
                     name_rect = name_surf.get_rect(midtop=(slot_r.center[0],self.bg_rect.bottom+UI_SLOT_SPACING))
-                    pygame.draw.rect(self.display_surface,UI_BG_COL,name_rect.inflate(10,0),0,4)
-                    self.display_surface.blit(name_surf,name_rect)
+                    if self.inventory.weapon != STAFF_NAME:
+                        pygame.draw.rect(self.display_surface,UI_BG_COL,name_rect.inflate(10,0),0,4)
+                        self.display_surface.blit(name_surf,name_rect)
+                        self.debug.blits += 2
                     if self.player.key_data["q"]: self.drop_item(slot.item)
-                    self.debug.blits += 2
-                    if slot.item and (slot.item.name in CAN_CONSUME or slot.item.name in CAN_EQUIP):
+                    if slot.item and (slot.item.name in CAN_CONSUME or slot.item.name in CAN_EQUIP) and self.inventory.weapon != STAFF_NAME:
                         txt = "Equip [F]" if slot.item.name in CAN_EQUIP else "Consume [F]"
                         surf = self.item_font.render(txt,False,"white")
                         rect = surf.get_rect(midtop = (name_rect.centerx,name_rect.bottom+2))
@@ -241,6 +257,10 @@ class UIInventory(UIState):
                     self.display_surface.blit(amount_surf,amount_rect)
                     self.debug.blits += 1
                 self.debug.blits += 1
+            pygame.draw.circle(self.display_surface,UI_SLOT_BG_COL,numhint[1].center,numhint[2])
+            self.display_surface.blit(numhint[0],numhint[1])
+            self.debug.blits += 2
+            
         # items
         self.floating_items.draw(self.display_surface)
         self.debug.blits += 3+len(self.floating_items.sprites())
@@ -324,8 +344,7 @@ class UIWeapon(UIState):
         self.weapon_original_s = pygame.transform.scale_by(surf,1.2)
         
     def start_attack(self, speed, fov):
-        mouse_pos = pygame.mouse.get_pos()
-        direction = vector(mouse_pos)-self.center
+        direction = vector(pygame.mouse.get_pos())-self.center
         if direction.magnitude() != 0: direction.normalize_ip()
         center = self.center+(self.offset_r if self.player.orientation == "right" else self.offset_l)+direction*self.mul
         angle = math.degrees(math.atan2(-direction.y,direction.x))-90
@@ -385,7 +404,7 @@ class UIEffects(UIState):
         
     def draw(self):
         items = self.inventory.effects.items()
-        self.bg_rect.h = self.effect_h*len(items); h = self.bg_rect.top+10
+        self.bg_rect.h = self.effect_h*len(items); h = self.bg_rect.top+5
         pygame.draw.rect(self.display_surface,UI_BG_COL,self.bg_rect)
         pygame.draw.polygon(self.display_surface,UI_BG_COL,(self.bg_rect.topleft,self.bg_rect.bottomleft,(self.bg_rect.left-30,self.bg_rect.top)))
         self.debug.blits += 2
@@ -398,4 +417,59 @@ class UIEffects(UIState):
             self.display_surface.blit(self.clock,clock_rect)
             self.debug.blits += 3; h += self.effect_h
             if "Resistance" in name: pygame.draw.line(self.display_surface,RED,icon_rect.bottomleft,icon_rect.topright,3); self.debug.blits += 1
+
+class UIRunes(UIState):
+    def __init__(self, player, assets):
+        super().__init__(player.debug)
+        self.inventory = player.inventory
+        self.rune_imgs = [pygame.transform.scale_by(surf,0.8) for surf in [self.inventory.get_item_surf_only(rune) for rune in RUNES]]
+        self.rune_rects = [rune.get_rect() for rune in self.rune_imgs]
+        self.alpha_rune_imgs = [img.copy() for img in self.rune_imgs]
+        [img.set_alpha(50) for img in self.alpha_rune_imgs]
+        self.soul_img = pygame.transform.scale_by(assets["soul"],0.8)
+        self.selected_rects:list[CornerRect] = []
+        self.power_names = POWERS
+        self.power_costs = [str(data["cost"]) for data in POWERS_DATA.values()]
+        self.font = pygame.font.Font("assets/fonts/main.ttf",25)
+        top = 72
+        slot_w = 54
+        inner_w = 40
+        spacing = 5
+        self.bg = pygame.Rect(0,0,slot_w*4+spacing*6,slot_w+4)
+        self.bg.midtop = (H_WIDTH,top)
+        self.left = H_WIDTH-320//2
+        self.right = H_WIDTH+320//2
+        x = self.bg.left+spacing
+        for i in range(4):
+            rect = pygame.Rect(x,self.bg.top-2,slot_w,self.bg.height-6)
+            x += spacing+slot_w
+            crect = CornerRect(rect,S_CORNER_W,SELECTED_POW_COL)
+            self.selected_rects.append(crect)
+            self.rune_rects[i].center = rect.center
         
+    def draw(self):
+        if self.inventory.weapon == STAFF_NAME:
+            pygame.draw.rect(self.display_surface,UI_BG_COL,self.bg)
+            pygame.draw.polygon(self.display_surface,UI_BG_COL,(self.bg.topleft,self.bg.bottomleft,(self.left,self.bg.top)))
+            pygame.draw.polygon(self.display_surface,UI_BG_COL,(self.bg.topright,self.bg.bottomright,(self.right,self.bg.top)))
+            self.debug.blits += 3
+            for i, name in enumerate(self.power_names):
+                sel_r = self.selected_rects[i]
+                rect = self.rune_rects[i]
+                img = self.rune_imgs[i] if name in self.inventory.powers else self.alpha_rune_imgs[i]
+                if self.inventory.power == name:
+                    sel_r.draw(self.debug)
+                    csurf = self.font.render(self.power_costs[i],True,"white")
+                    crect = csurf.get_rect(midtop = (sel_r.original.centerx-self.soul_img.get_width()//2,self.bg.bottom-2))
+                    soulr = self.soul_img.get_rect(midleft=(crect.right+2,crect.centery))
+                    scaled = crect.inflate(38,-4)
+                    scaled.midright = (soulr.right+10,soulr.centery)
+                    pygame.draw.rect(self.display_surface,UI_BG_COL,scaled)
+                    pygame.draw.polygon(self.display_surface,UI_BG_COL,(scaled.topleft,scaled.bottomleft,(scaled.left-8,scaled.top)))
+                    pygame.draw.polygon(self.display_surface,UI_BG_COL,(scaled.topright,scaled.bottomright,(scaled.right+8,scaled.top)))
+                    self.display_surface.blit(self.soul_img,soulr)
+                    self.display_surface.blit(csurf,crect)
+                    self.debug.blits += 5
+                self.display_surface.blit(img,rect)
+                self.debug.blits += 1
+      

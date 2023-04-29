@@ -7,6 +7,7 @@ class Inventory:
     i = None
     def __init__(self, assets):
         Inventory.i = self
+        self.ui_changed = False
         self.display_surface = pygame.display.get_surface()
         self.assets = support.parse_sprites_ratio(assets["items"])
         
@@ -14,14 +15,25 @@ class Inventory:
         for _ in range(5): self.slots.append(Slot())
             
         self.coins = 0
-        self.ui_changed = False
-        
+        self.souls = 0
         self.weapon = None
         self.effects = {}
+        self.powers = []
+        self.power = None
         
     def consume_item(self, item):
         self.remove_item(item.name)
         if item.name in POTIONS: self.add_effect(item.name)
+        if item.name in RUNES: self.unlock_power(RUNE_POWERS[item.name])
+        
+    def unlock_power(self, name):
+        if name not in self.powers: self.powers.append(name)
+        self.select_power(name)
+    def select_power(self, name): 
+        if name in self.powers: self.power = name
+    def can_power(self, cost): return self.souls >= cost
+    def use_power(self,cost): self.souls -= cost; self.ui_changed = True
+    def collect_souls(self, amount): self.souls += amount; self.ui_changed = True
             
     def add_effect(self,name): self.effects[name] = {"start":pygame.time.get_ticks(),"duration":POTION_DATA[name]["duration"]}
     def effect_active(self, name): return name in self.effects.keys()
@@ -30,32 +42,25 @@ class Inventory:
     def get_item_surf_only(self, name): return self.assets[name][0]
         
     def add_coins(self,amount, starting=False):
-        self.coins += amount
-        self.ui_changed = True
+        self.coins += amount; self.ui_changed = True
         for i in range(amount):
             if not starting: self.add_floating_coin()
-        
     def can_buy(self, price=1): return self.coins >= price
-    def can_remove(self, name): return self.has_item(name)
-    
+    def can_remove(self, name): return self.has_item(name) 
     def buy(self, price):
-        if self.can_buy(price):
-            self.coins -= price; self.ui_changed = True
+        if self.can_buy(price): self.coins -= price; self.ui_changed = True
         
     def empty(self):
-        for slot in self.slots: slot.empty()
-            
+        for slot in self.slots: slot.empty()    
     def has_item(self,name):
         for slot in self.slots:
             if slot.compare(name) and not slot.is_empty(): return True
         return False
-    
     def count_item(self, name):
         amount = 0
         for slot in self.slots:
             if slot.compare(name): amount += slot.amount
         return amount
-    
     def can_add(self,name):
         for slot in self.slots:
             if slot.is_empty(): return not self.has_item(name)
@@ -98,7 +103,8 @@ class Inventory:
     
 @singleton   
 class Stats:
-    def __init__(self):
+    def __init__(self, indicate_damage):
+        self.indicate_damage = indicate_damage
         self.max_health = 14
         self.health = self.max_health
         
@@ -114,7 +120,7 @@ class Stats:
             if self.health < self.max_health: self.health = self.max_health
             else: return False, "No need to heal"
             return True,None
-        elif item.name in POTIONS: return True,None
+        elif item.name in POTIONS or item.name in RUNES: return True,None
         return False, "[ERR] Could not consume item"
     
     # energy
@@ -131,6 +137,7 @@ class Stats:
             self.health -= int(amount)
             if self.health <= 0: self.health = 0; self.alive = False
             self.last_damage = pygame.time.get_ticks()
+            self.indicate_damage(amount)
             
     def heal(self, amount):
         self.health += int(amount); self.last_heal = pygame.time.get_ticks()

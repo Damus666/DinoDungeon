@@ -1,6 +1,5 @@
 from pygame.math import Vector2 as vector
 import pygame
-
 pygame.init()
 
 # window
@@ -70,6 +69,7 @@ HEALTH_OUTLINE_COL = (110,0,5)
 UI_DIALOGUE_BTN_COL = (35, 35, 35)
 UI_SLOT_BG_COL = (30, 30, 30)
 UI_BG_COL = (20, 20, 20)
+SELECTED_POW_COL = (100,0,150)
 
 # dnc
 DAY_DURATION = 2*1000*60
@@ -95,7 +95,8 @@ CAN_EQUIP = [
     "Sword",
     "Knight Sword",
     "Golden Sword",
-    "Mace"
+    "Mace",
+    "Emerald Staff"
 ]
 POTION_DATA = {
     "Energy Drink":{"duration":20*1000},
@@ -103,14 +104,13 @@ POTION_DATA = {
     "Fire Resistance":{"duration":40*1000}
 }
 POTIONS = list(POTION_DATA.keys())
-CAN_CONSUME = [
-    "Healing Potion"
-] + POTIONS
+STAFF_NAME = "Emerald Staff"
 ITEM_STATS = {
-    "Sword":{"damage": 3,"area":False,"speed":350,"fov":60},
-    "Knight Sword":{"damage":8,"area":False,"speed":300,"fov":60},
-    "Golden Sword":{"damage":12,"area":False,"speed":350,"fov":60},
-    "Mace":{"damage":4,"area":True,"speed":300,"fov":80},
+    "Sword":{"damage": 3,"area":False,"speed":350,"fov":60,"soul":30},
+    "Knight Sword":{"damage":8,"area":False,"speed":300,"fov":60,"soul":50},
+    "Golden Sword":{"damage":12,"area":False,"speed":350,"fov":60,"soul":70},
+    "Mace":{"damage":4,"area":True,"speed":300,"fov":80,"soul":30},
+    STAFF_NAME:{"damage":0,"area":False,"speed":600,"fov":50,"soul":0},
 }
 ITEM_STACKS = {
     "Healing Potion":3,
@@ -119,6 +119,23 @@ ITEM_STACKS = {
     "Fire Resistance":2,
 }
 STACKABLE = list(ITEM_STACKS.keys())
+RUNE_POWERS = {
+    "Fire Rune":"Fireball",
+    "Ice Rune":"Ice Pick",
+    "Wind Rune":"Tornado",
+    "Light Rune":"Light Cast"
+}
+POWERS_DATA = {
+    "Fireball":{"speed":600,"force":{"name":"none"},"damage":5,"cost":8,"hit":"Explosion","effect":"FireBall_3","lifetime":4,"piercing":2},
+    "Ice Pick":{"speed":800,"force":{"name":"none"},"damage":7,"cost":10,"hit":"IceShatter","effect":"IcePick","lifetime":3,"piercing":3},
+    "Tornado":{"speed":80,"force":{"name":"attract","force":0.4},"damage":2,"cost":8,"hit":"none","effect":"TornadoLoop","lifetime":8,"piercing":100},
+    "Light Cast":{"speed":0,"force":{"name":"repell","force":1.2},"damage":10,"cost":14,"hit":"LightCast","effect":"HolyExplosion","lifetime":5/3,"piercing":100},
+}
+POWERS = list(POWERS_DATA.keys())
+RUNES = list(RUNE_POWERS.keys())
+CAN_CONSUME = [
+    "Healing Potion"
+] + POTIONS + RUNES
 
 # generation
 FLOOR_WEIGHTS = [

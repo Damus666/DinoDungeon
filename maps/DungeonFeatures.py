@@ -56,9 +56,9 @@ INTERACTION_DATA = {
 }
 
 ENEMY_DATA = {
-    "masked_orc":(("Orc Mask",),"health_bar",12,"attack",80,{"damage":1}),
-    "The Guard":(("Ogre Head","Mace"),"lock_room,boss_ui",100,"attack",110,{}),
-    "Hellblaze":(("Portal Key",),"lock_room,boss_ui",200,"attack",165,{}),
-    "chort":([],"health_bar",9,"attack",100,{"damage":1}),
-    "necromancer":([],"health_bar",15,"attack",60,{"damage":2}),
+    "masked_orc":(("Orc Mask",),"health_bar",12,"attack",80,{"damage":1,"souls":5}),
+    "The Guard":(("Ogre Head","Mace"),"lock_room,boss_ui",100,"attack",110,{"souls":20}),
+    "Hellblaze":(("Portal Key",),"lock_room,boss_ui",200,"attack",165,{"souls":100}),
+    "chort":(["Fire Rune:7"],"health_bar",9,"attack",100,{"damage":1,"souls":4}),
+    "necromancer":(["Ice Rune:6","Wind Rune:5"],"health_bar",15,"attack",60,{"damage":2,"souls":6}),
 }

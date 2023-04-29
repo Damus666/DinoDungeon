@@ -15,7 +15,7 @@ class Player(AnimatedStatus):
         self.debug = self.dungeon.debug
         # inventory
         self.inventory = Inventory(dungeon.assets)
-        self.stats = Stats()
+        self.stats = Stats(self.indicate_damage)
         # room
         self.current_room = None
         self.next_teleport_loc = (0,0)
@@ -42,7 +42,7 @@ class Player(AnimatedStatus):
         self.font1 = pygame.font.Font("assets/fonts/main.ttf",30)
         self.key_data = {"q":False,"f":False}
         # init
-        self.give_starter_items("Poison Resistance","Fire Resistance","Energy Drink","Silver Key",coins=2000)
+        self.give_starter_items("Sword","Fire Resistance","Emerald Staff","Silver Key","Quartz Key",coins=2000)
         self.dungeon.debug.loaded_entities += 1
         
     def finish(self): self.weapon_ui = self.dungeon.ui.states["weapon"]
@@ -51,6 +51,9 @@ class Player(AnimatedStatus):
     def give_starter_items(self, *items,coins=0):
         for item in items: self.inventory.add_item(item_from_name(item),True)
         self.inventory.add_coins(coins,True)
+        self.inventory.collect_souls(2000)
+        self.inventory.unlock_power("Light Cast")
+        self.inventory.unlock_power("Fireball")
     
     # actions
     @external
@@ -95,16 +98,33 @@ class Player(AnimatedStatus):
                     
     def finish_attack(self, rect, offset):
         if self.dashing: return
+        if self.inventory.weapon == STAFF_NAME: self.finish_staff()
+        else: self.finish_weapon(rect, offset)
+                
+    def finish_weapon(self, rect, offset):
         stats = ITEM_STATS[self.inventory.weapon]
-        damage,area= stats["damage"],stats["area"]
+        damage,area, soul_chance= stats["damage"],stats["area"],stats["soul"]
         rect = rect.copy()
         rect.center = self.pos + offset
         for enemy in self.current_room.enemies:
             if rect.colliderect(enemy.rect):
                 enemy.damage(damage)
+                if randint(0,100) <= soul_chance: self.inventory.collect_souls(1); self.indicate_soul(enemy.rect.midtop)
                 if not area: break
+        
+    def finish_staff(self):
+        if not self.inventory.power and len(self.inventory.powers) > 0: self.inventory.select_power(self.inventory.powers[0])
+        data = POWERS_DATA[self.inventory.power]
+        if not self.inventory.can_power(data["cost"]): return
+        self.inventory.use_power(data["cost"])
+        direction = vector(pygame.mouse.get_pos())-vector(H_WIDTH,H_HEIGHT)
+        if direction.magnitude() != 0: direction.normalize_ip()
+        PowerEffect(self.pos.copy(),self.dungeon.assets["fx"][data["effect"]],[self.current_room.visible_top,self.current_room.updates,self.current_room.effects],
+                    self.current_room,direction,data)
     
     def can_damage(self): return not self.dashing 
+    def indicate_damage(self, amount): DamageIndicator(self.rect.midtop, amount, [self.current_room.visible_top, self.current_room.updates],self.room,"red",self.font1)
+    def indicate_soul(self, pos): SoulMsg(pos,self.dungeon.assets["ui"]["soul"],[self.current_room.visible_top,self.current_room.updates],self.current_room)
     
     def dash_particles(self):
         flip = True if self.orientation == "left" else False
@@ -151,12 +171,16 @@ class Player(AnimatedStatus):
     def reset_event(self): self.key_data = dict.fromkeys(self.key_data.keys(),False)
             
     def items_shortcuts(self, key):
+        keys = pygame.key.get_pressed()
         if key == pygame.K_f: self.inventory.weapon = None
         name= pygame.key.name(key)
         if name.isdecimal():
             name = int(name)
-            slot = self.inventory.slots[name-1]
-            if not slot.is_empty(): self.item_interact(slot.item)
+            if not keys[pygame.K_LALT]:
+                slot = self.inventory.slots[name-1]
+                if not slot.is_empty(): self.item_interact(slot.item)
+            else:
+                self.inventory.select_power(POWERS[name-1])
     
     def event(self, e):
         if e.type == pygame.KEYDOWN:
@@ -287,6 +311,17 @@ class Player(AnimatedStatus):
                 self.stats.damage(fireball.player_damage)
                 fireball.kill()
                 FxEffect(self.rect.center,self.dungeon.assets["fx"]["FireBurst"],[self.current_room.visible_top,self.current_room.updates],self.current_room,1,1.5)
+        # power
+        for power in self.current_room.effects:
+            pierced = 0
+            for enemy in self.current_room.enemies:
+                power.apply_force(enemy)
+                if power.hitbox.colliderect(enemy.rect):
+                    damaged= enemy.damage(power.player_damage)
+                    if damaged: pierced += 1
+                    if (fx:=power.hit_effect) != "none" and damaged:
+                        FxEffect(enemy.rect.center,self.dungeon.assets["fx"][fx],[self.current_room.visible_top,self.current_room.updates],self.current_room,1,1.5)
+                    if pierced >= power.piercing: break
     
     # update
     def draw_extra(self,offset):

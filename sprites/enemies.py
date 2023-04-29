@@ -4,7 +4,7 @@ from support import *
 from pygame.math import Vector2 as vector
 from sprites.super import Character
 from sprites.animated import FxEffect, Fireball
-from sprites.static import WarningMsg, Disappearing, DisappearFaded
+from sprites.static import WarningMsg, Disappearing, DisappearFaded, DamageIndicator
 
 class Enemy(Character):
     def __init__(self, pos, animations, groups, name, font, room):
@@ -27,11 +27,23 @@ class Enemy(Character):
             self.health -= amount
             if self.health <= 0: self.die()
             self.last_damage = pygame.time.get_ticks()
+            self.indicate_damage(amount)
+            return True
+        return False
+    
+    def indicate_damage(self, amount): DamageIndicator(self.rect.midtop, amount, [self.room.visible_top, self.room.updates],self.room,"green",self.font)
 
     def die(self):
         for name in self.drop_names:
+            if ":" in name:
+                split = name.split(":")
+                chance = int(split[-1])
+                name = split[0]
+                if randint(0,100) > chance: break
             item = item_from_name(name)
             self.room.drop_item(item,self.rect.center)
+        self.player.inventory.collect_souls(self.attack_data["souls"])
+        self.player.indicate_soul(self.rect.midtop)
         self.room.defeated(self)
         self.kill()
     
@@ -284,7 +296,7 @@ class HellblazeBoss(Boss):
         if self.attack_mode == 2: self.warn(); self.start_fireball_attack()
         
     def spawn_fireball(self, size):
-        sprites = choice([self.assets["fx"]["FireBall"],self.assets["fx"]["FireBall_3"]]) if size == "small" else self.assets["fx"]["FireBall_2"]
+        sprites = self.assets["fx"]["FireBall"] if size == "small" else self.assets["fx"]["FireBall_2"]
         damage,speed_mul = (2,1) if size == "small" else (5,1.5)
         dir = self.player.pos-self.pos
         if dir.magnitude() != 0: dir.normalize_ip()
